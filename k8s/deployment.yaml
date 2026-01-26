@@ -37,6 +37,7 @@ metadata:
   name: vulnerable-app
   labels:
     app: vulnerable-app
+    contrast-agent: java
 spec:
   replicas: 2
   selector:

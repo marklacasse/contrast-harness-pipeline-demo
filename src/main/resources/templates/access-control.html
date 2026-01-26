@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Access Control Vulnerabilities</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Broken Access Control (A01:2021)</h1>
+        <a href="/" class="back-link">← Back to Home</a>
+        
+        <div class="test-section">
+            <h2>Insecure Direct Object Reference (IDOR)</h2>
+            <p>Try accessing different user profiles by changing the ID:</p>
+            <p><a href="/access-control/profile/1">View User 1</a> | 
+               <a href="/access-control/profile/2">View User 2</a> | 
+               <a href="/access-control/profile/3">View User 3</a></p>
+        </div>
+        
+        <div class="test-section">
+            <h2>Missing Function Level Access Control</h2>
+            <p>Delete users without admin privileges:</p>
+            <form action="/access-control/admin/delete-user/2" method="post">
+                <button type="submit">Delete User 2 (No Auth Check!)</button>
+            </form>
+        </div>
+        
+        <div class="test-section">
+            <h2>Horizontal Privilege Escalation</h2>
+            <p>Update any user's email:</p>
+            <form action="/access-control/update-email" method="post">
+                <input type="number" name="userId" placeholder="User ID" value="1">
+                <input type="email" name="email" placeholder="New Email" required>
+                <button type="submit">Update Email</button>
+            </form>
+        </div>
+        
+        <div class="test-section">
+            <h2>Path Traversal</h2>
+            <p>Try: <code>../../etc/passwd</code> or <code>/etc/hosts</code></p>
+            <form action="/access-control/download" method="get">
+                <input type="text" name="filename" placeholder="File path" required>
+                <button type="submit">Download File</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

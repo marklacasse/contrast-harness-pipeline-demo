@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>XSS Search</title><link rel="stylesheet" th:href="@{/css/style.css}"></head>
+<body>
+    <div class="container">
+        <h1>Search Results</h1>
+        <a href="/xss" class="back-link">← Back</a>
+        <div class="test-section" th:if="${query}">
+            <p>Search query: <span th:utext="${unsafeQuery}">query</span></p>
+        </div>
+    </div>
+</body>
+</html>

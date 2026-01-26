@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>User Profile</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1>User Profile</h1>
+        <a href="/access-control" class="back-link">← Back</a>
+        
+        <div class="test-section" th:if="${user}">
+            <h2>Profile Information</h2>
+            <p><strong>ID:</strong> <span th:text="${user.id}"></span></p>
+            <p><strong>Username:</strong> <span th:text="${user.username}"></span></p>
+            <p><strong>Email:</strong> <span th:text="${user.email}"></span></p>
+            <p><strong>Role:</strong> <span th:text="${user.role}"></span></p>
+            <p><strong>Password Hash:</strong> <span th:text="${user.password}"></span></p>
+        </div>
+        
+        <div class="test-section" th:if="${message}">
+            <p th:text="${message}"></p>
+        </div>
+    </div>
+</body>
+</html>

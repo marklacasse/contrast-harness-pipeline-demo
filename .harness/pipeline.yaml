@@ -1,0 +1,102 @@
+pipeline:
+  name: Vulnerable App CI/CD
+  identifier: vulnerable_app_cicd
+  projectIdentifier: <YOUR_PROJECT_ID>
+  orgIdentifier: <YOUR_ORG_ID>
+  tags: {}
+  
+  stages:
+    - stage:
+        name: Build and Test
+        identifier: build_and_test
+        type: CI
+        spec:
+          cloneCodebase: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Maven Build
+                  identifier: maven_build
+                  spec:
+                    connectorRef: <YOUR_DOCKER_CONNECTOR>
+                    image: maven:3.9-eclipse-temurin-17-alpine
+                    shell: Sh
+                    command: |
+                      echo "Building application..."
+                      mvn clean package -DskipTests
+                      echo "Build completed successfully"
+                    
+              - step:
+                  type: Run
+                  name: Run Unit Tests
+                  identifier: run_tests
+                  spec:
+                    connectorRef: <YOUR_DOCKER_CONNECTOR>
+                    image: maven:3.9-eclipse-temurin-17-alpine
+                    shell: Sh
+                    command: |
+                      echo "Running unit tests..."
+                      mvn test
+                      
+              - step:
+                  type: BuildAndPushDockerRegistry
+                  name: Build and Push Docker Image
+                  identifier: build_push_docker
+                  spec:
+                    connectorRef: <YOUR_DOCKER_CONNECTOR>
+                    repo: <YOUR_DOCKER_REPO>/vulnerable-app
+                    tags:
+                      - latest
+                      - <+pipeline.sequenceId>
+                    dockerfile: Dockerfile
+                    
+    - stage:
+        name: Deploy to EKS
+        identifier: deploy_to_eks
+        type: Deployment
+        spec:
+          deploymentType: Kubernetes
+          service:
+            serviceRef: vulnerable_app
+          environment:
+            environmentRef: eks_dev
+            infrastructureDefinitions:
+              - identifier: eks_cluster
+          execution:
+            steps:
+              - step:
+                  type: K8sRollingDeploy
+                  name: Rolling Deployment
+                  identifier: rolling_deploy
+                  spec:
+                    skipDryRun: false
+                    pruningEnabled: false
+                    
+              - step:
+                  type: K8sBlueGreenDeploy
+                  name: Verify Deployment
+                  identifier: verify_deployment
+                  spec:
+                    skipDryRun: false
+                    
+            rollbackSteps:
+              - step:
+                  type: K8sRollingRollback
+                  name: Rollback
+                  identifier: rollback
+                  spec:
+                    pruningEnabled: false
+                    
+  properties:
+    ci:
+      codebase:
+        connectorRef: <YOUR_GIT_CONNECTOR>
+        repoName: contrast-harness-pipeline-demo
+        build: <+input>

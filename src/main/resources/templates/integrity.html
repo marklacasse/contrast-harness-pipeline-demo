@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Integrity</title><link rel="stylesheet" th:href="@{/css/style.css}"></head>
+<body>
+    <div class="container">
+        <h1>🔧 Data Integrity Failures (A08:2021)</h1>
+        <a href="/" class="back-link">← Back to Home</a>
+        <div class="test-section">
+            <h2>Insecure Deserialization</h2>
+            <form action="/integrity/deserialize" method="post">
+                <input type="text" name="data" placeholder="Base64 serialized object" required>
+                <button type="submit">Deserialize</button>
+            </form>
+        </div>
+        <div class="test-section">
+            <h2>No Integrity Check</h2>
+            <form action="/integrity/upload" method="post">
+                <input type="text" name="filename" placeholder="Filename" required>
+                <textarea name="content" placeholder="File content" rows="3"></textarea>
+                <button type="submit">Upload</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

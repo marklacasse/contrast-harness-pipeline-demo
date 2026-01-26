@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrast Vulnerable Demo App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #e74c3c;
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .warning h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .warning p {
+            color: #856404;
+            line-height: 1.6;
+        }
+        
+        .vulnerabilities {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .vuln-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .vuln-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+        
+        .vuln-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+        
+        .vuln-card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .vuln-card a {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background 0.3s ease;
+        }
+        
+        .vuln-card a:hover {
+            background: #764ba2;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔓 Vulnerable Demo Application</h1>
+        <p class="subtitle">OWASP Top 10 Testing Platform for IAST Tools</p>
+        
+        <div class="warning">
+            <h3>⚠️ WARNING - INTENTIONALLY VULNERABLE</h3>
+            <p>
+                This application contains <strong>deliberately vulnerable code</strong> for security testing purposes.
+                <strong>DO NOT deploy this in production or on public networks!</strong>
+                Use only in isolated testing environments with proper network segmentation.
+            </p>
+        </div>
+        
+        <div class="vulnerabilities">
+            <div class="vuln-card">
+                <h3>A01: Broken Access Control</h3>
+                <p>Test IDOR, privilege escalation, and path traversal vulnerabilities.</p>
+                <a href="/access-control">Explore →</a>
+            </div>
+            
+            <div class="vuln-card">
+                <h3>A02: Cryptographic Failures</h3>
+                <p>Weak hashing, hardcoded secrets, and insecure random generation.</p>
+                <a href="/crypto">Explore →</a>
+            </div>
+            
+            <div class="vuln-card">
+                <h3>A03: Injection</h3>
+                <p>SQL, command, and LDAP injection vulnerabilities.</p>
+                <a href="/injection">Explore →</a>
+            </div>
+            
+            <div class="vuln-card">
+                <h3>A03: Cross-Site Scripting</h3>
+                <p>Reflected, stored, and DOM-based XSS vulnerabilities.</p>
+                <a href="/xss">Explore →</a>
+            </div>
+            
+            <div class="vuln-card">
+                <h3>A05: Security Misconfiguration</h3>
+                <p>Default credentials, verbose errors, and debug mode exposure.</p>
+                <a href="/config">Explore →</a>
+            </div>
+            
+            <div class="vuln-card">
+                <h3>A07: Authentication Failures</h3>
+                <p>Weak passwords, no rate limiting, and session fixation.</p>
+                <a href="/auth">Explore →</a>
+            </div>
+            
+            <div class="vuln-card">
+                <h3>A08: Data Integrity Failures</h3>
+                <p>Insecure deserialization and missing integrity checks.</p>
+                <a href="/integrity">Explore →</a>
+            </div>
+            
+            <div class="vuln-card">
+                <h3>A09: Logging Failures</h3>
+                <p>Log injection, insufficient logging, and sensitive data in logs.</p>
+                <a href="/logging">Explore →</a>
+            </div>
+            
+            <div class="vuln-card">
+                <h3>A10: Server-Side Request Forgery</h3>
+                <p>SSRF, XXE, and unvalidated URL fetching.</p>
+                <a href="/ssrf">Explore →</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Built for IAST Security Testing | Version 1.0.0</p>
+        </div>
+    </div>
+</body>
+</html>

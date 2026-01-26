@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>SSRF</title><link rel="stylesheet" th:href="@{/css/style.css}"></head>
+<body>
+    <div class="container">
+        <h1>🌐 Server-Side Request Forgery (A10:2021)</h1>
+        <a href="/" class="back-link">← Back to Home</a>
+        <div class="test-section">
+            <h2>URL Fetch</h2>
+            <p>Try: <code>http://localhost:8080/actuator/health</code></p>
+            <form action="/ssrf/fetch-url" method="post">
+                <input type="text" name="url" placeholder="URL to fetch" required>
+                <button type="submit">Fetch URL</button>
+            </form>
+        </div>
+        <div class="test-section">
+            <h2>Image Proxy</h2>
+            <form action="/ssrf/proxy-image" method="get">
+                <input type="text" name="imageUrl" placeholder="Image URL" required>
+                <button type="submit">Proxy Image</button>
+            </form>
+        </div>
+        <div class="test-section">
+            <h2>XXE (XML External Entity)</h2>
+            <form action="/ssrf/parse-xml" method="post">
+                <textarea name="xmlContent" placeholder="XML content" rows="5"></textarea>
+                <button type="submit">Parse XML</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

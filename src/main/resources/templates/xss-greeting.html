@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>XSS Greeting</title><link rel="stylesheet" th:href="@{/css/style.css}"></head>
+<body>
+    <div class="container">
+        <h1>Greeting</h1>
+        <a href="/xss" class="back-link">← Back</a>
+        <div id="greeting"></div>
+        <script th:inline="javascript">
+            var name = /*[[${name}]]*/ 'Guest';
+            document.getElementById('greeting').innerHTML = 'Hello, ' + name + '!';
+        </script>
+    </div>
+</body>
+</html>

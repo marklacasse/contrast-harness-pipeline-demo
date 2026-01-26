@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Injection Vulnerabilities</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <h1>💉 Injection Vulnerabilities (A03:2021)</h1>
+        <a href="/" class="back-link">← Back to Home</a>
+        
+        <div class="test-section">
+            <h2>SQL Injection</h2>
+            <p>Try: <code>' OR '1'='1</code> in username field</p>
+            <form action="/injection/sql" method="post">
+                <input type="text" name="username" placeholder="Username" required>
+                <input type="password" name="password" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+        </div>
+        
+        <div class="test-section">
+            <h2>Command Injection</h2>
+            <p>Try: <code>localhost; ls -la</code> or <code>localhost && whoami</code></p>
+            <form action="/injection/command" method="post">
+                <input type="text" name="host" placeholder="Host to ping" required>
+                <button type="submit">Ping Host</button>
+            </form>
+        </div>
+        
+        <div class="test-section">
+            <h2>LDAP Injection</h2>
+            <p>Try: <code>*)(uid=*))(|(uid=*</code></p>
+            <form action="/injection/ldap" method="post">
+                <input type="text" name="username" placeholder="LDAP Username" required>
+                <button type="submit">Search LDAP</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

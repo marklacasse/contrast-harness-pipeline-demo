@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><title>Crypto</title><link rel="stylesheet" th:href="@{/css/style.css}"></head>
+<body>
+    <div class="container">
+        <h1>🔐 Cryptographic Failures (A02:2021)</h1>
+        <a href="/" class="back-link">← Back to Home</a>
+        <div class="test-section">
+            <h2>Weak Hashing (MD5)</h2>
+            <form action="/crypto/hash-password" method="post">
+                <input type="password" name="password" placeholder="Password" required>
+                <button type="submit">Hash with MD5</button>
+            </form>
+        </div>
+        <div class="test-section">
+            <h2>Hardcoded Credentials</h2>
+            <p><a href="/crypto/get-api-key">View Hardcoded Secrets</a></p>
+        </div>
+        <div class="test-section">
+            <h2>Sensitive Data Exposure</h2>
+            <form action="/crypto/user-details" method="get">
+                <input type="text" name="userId" placeholder="User ID" required>
+                <button type="submit">Get User Details</button>
+            </form>
+        </div>
+        <div class="test-section">
+            <h2>Insecure Random</h2>
+            <p><a href="/crypto/generate-token">Generate Token (Insecure)</a></p>
+        </div>
+    </div>
+</body>
+</html>

@@ -32,7 +32,7 @@ spec:
     spec:
       containers:
         - name: vulnerable-app
-          image: <YOUR_DOCKER_REPO>/vulnerable-app:latest
+          image: <+artifacts.primary.image>
           ports:
             - containerPort: 8080
               name: http

@@ -50,7 +50,7 @@ spec:
     spec:
       containers:
         - name: vulnerable-app
-          image: <+artifacts.primary.image>
+          image: zencid/contrast-harness-pipeline-demo:latest
           ports:
             - containerPort: 8080
               name: http

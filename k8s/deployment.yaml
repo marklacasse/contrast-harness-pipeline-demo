@@ -50,7 +50,7 @@ spec:
     spec:
       containers:
         - name: vulnerable-app
-          image: <+artifact.image>
+          image: marklacasse/contrast-harness-pipeline-demo:<+artifact.tag>
           ports:
             - containerPort: 8080
               name: http

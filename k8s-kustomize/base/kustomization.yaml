@@ -15,11 +15,9 @@ resources:
 configMapGenerator:
   - name: contrast-config
     literals:
-      - CONTRAST__API__URL=https://app.contrastsecurity.com/Contrast
-      - CONTRAST__API__SERVICE_KEY=PLACEHOLDER
-      - CONTRAST__API__USER_NAME=PLACEHOLDER
-      - CONTRAST__API__API_KEY=PLACEHOLDER
-      - CONTRAST__APPLICATION__NAME=vulnerable-app
+      - CONTRAST__APPLICATION__NAME=<+pipeline.variables.appName>
+      - CONTRAST__APPLICATION__TAGS=<+pipeline.variables.tags>
+      - CONTRAST__APPLICATION__SESSION_METADATA=branchName=<+codebase.branch>,buildNumber=<+pipeline.sequenceId>,committer=<+codebase.gitUser>
 
 # Images to use (can be overridden in overlays)
 images:

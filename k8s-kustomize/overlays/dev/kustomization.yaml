@@ -1,0 +1,49 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Reference base configuration
+resources:
+  - ../../base
+
+# Namespace for dev environment
+namespace: apps
+
+# Dev-specific labels
+commonLabels:
+  environment: dev
+
+# Override replicas for dev
+replicas:
+  - name: vulnerable-app
+    count: 1
+
+# Dev-specific Contrast configuration
+configMapGenerator:
+  - name: contrast-config
+    behavior: merge
+    literals:
+      - CONTRAST__API__URL=https://app.contrastsecurity.com/Contrast
+      - CONTRAST__APPLICATION__NAME=vulnerable-app-dev
+      - CONTRAST__APPLICATION__TAGS=env:dev,team:demo
+      # Add your dev-specific Contrast API credentials here
+      # - CONTRAST__API__SERVICE_KEY=your-dev-service-key
+      # - CONTRAST__API__USER_NAME=your-dev-username
+      # - CONTRAST__API__API_KEY=your-dev-api-key
+
+# Override image tag for dev (Harness will update this)
+images:
+  - name: zencid/contrast-harness-pipeline-demo
+    newTag: latest
+
+# Patches for dev-specific changes
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/cpu
+        value: "125m"
+    target:
+      kind: Deployment
+      name: vulnerable-app

@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Common metadata for all resources
+commonLabels:
+  app: vulnerable-app
+  managed-by: kustomize
+
+# Resources to include
+resources:
+  - service.yaml
+  - deployment.yaml
+
+# ConfigMap generator for Contrast configuration
+configMapGenerator:
+  - name: contrast-config
+    literals:
+      - CONTRAST__API__URL=https://app.contrastsecurity.com/Contrast
+      - CONTRAST__API__SERVICE_KEY=PLACEHOLDER
+      - CONTRAST__API__USER_NAME=PLACEHOLDER
+      - CONTRAST__API__API_KEY=PLACEHOLDER
+      - CONTRAST__APPLICATION__NAME=vulnerable-app
+
+# Images to use (can be overridden in overlays)
+images:
+  - name: zencid/contrast-harness-pipeline-demo
+    newTag: latest

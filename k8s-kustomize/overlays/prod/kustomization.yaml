@@ -17,18 +17,12 @@ replicas:
   - name: vulnerable-app
     count: 2
 
-# Prod-specific Contrast configuration
+# Prod-specific Contrast configuration (merges with base)
 configMapGenerator:
   - name: contrast-config
     behavior: merge
     literals:
-      - CONTRAST__API__URL=https://app.contrastsecurity.com/Contrast
-      - CONTRAST__APPLICATION__NAME=vulnerable-app-prod
       - CONTRAST__APPLICATION__TAGS=env:prod,team:demo,critical:true
-      # Add your prod-specific Contrast API credentials here
-      # - CONTRAST__API__SERVICE_KEY=your-prod-service-key
-      # - CONTRAST__API__USER_NAME=your-prod-username
-      # - CONTRAST__API__API_KEY=your-prod-api-key
 
 # Override image tag for prod (Harness will update this)
 images:

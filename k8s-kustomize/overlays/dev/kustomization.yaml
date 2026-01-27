@@ -17,18 +17,12 @@ replicas:
   - name: vulnerable-app
     count: 1
 
-# Dev-specific Contrast configuration
+# Dev-specific Contrast configuration (merges with base)
 configMapGenerator:
   - name: contrast-config
     behavior: merge
     literals:
-      - CONTRAST__API__URL=https://app.contrastsecurity.com/Contrast
-      - CONTRAST__APPLICATION__NAME=vulnerable-app-dev
       - CONTRAST__APPLICATION__TAGS=env:dev,team:demo
-      # Add your dev-specific Contrast API credentials here
-      # - CONTRAST__API__SERVICE_KEY=your-dev-service-key
-      # - CONTRAST__API__USER_NAME=your-dev-username
-      # - CONTRAST__API__API_KEY=your-dev-api-key
 
 # Override image tag for dev (Harness will update this)
 images:

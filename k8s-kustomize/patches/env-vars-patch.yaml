@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vulnerable-app
+spec:
+  template:
+    spec:
+      containers:
+        - name: vulnerable-app
+          env:
+            - name: CONTRAST__APPLICATION__NAME
+              value: <+serviceVariables.appName>
+            - name: CONTRAST__APPLICATION__TAGS
+              value: <+serviceVariables.tags>
+            - name: CONTRAST__APPLICATION__SESSION_METADATA
+              value: branchName=main,buildNumber=<+pipeline.sequenceId>

@@ -26,10 +26,12 @@ spec:
               value: "default"
             - name: JAVA_OPTS
               value: "-Xmx512m -Xms256m"
-            # Contrast environment variables will be added via Kustomize overlays
-          envFrom:
-            - configMapRef:
-                name: contrast-config
+            - name: CONTRAST__APPLICATION__NAME
+              value: <+pipeline.variables.appName>
+            - name: CONTRAST__APPLICATION__TAGS
+              value: <+pipeline.variables.tags>
+            - name: CONTRAST__APPLICATION__SESSION_METADATA
+              value: branchName=<+codebase.branch>,buildNumber=<+pipeline.sequenceId>,committer=<+codebase.gitUser>
           resources:
             requests:
               memory: "512Mi"

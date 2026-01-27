@@ -11,14 +11,6 @@ resources:
   - service.yaml
   - deployment.yaml
 
-# ConfigMap generator for Contrast configuration
-configMapGenerator:
-  - name: contrast-config
-    literals:
-      - CONTRAST__APPLICATION__NAME=<+pipeline.variables.appName>
-      - CONTRAST__APPLICATION__TAGS=<+pipeline.variables.tags>
-      - CONTRAST__APPLICATION__SESSION_METADATA=branchName=<+codebase.branch>,buildNumber=<+pipeline.sequenceId>,committer=<+codebase.gitUser>
-
 # Images to use (can be overridden in overlays)
 images:
   - name: zencid/contrast-harness-pipeline-demo

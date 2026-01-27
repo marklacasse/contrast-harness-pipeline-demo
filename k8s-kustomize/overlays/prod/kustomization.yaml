@@ -9,20 +9,14 @@ resources:
 namespace: production
 
 # Prod-specific labels
-commonLabels:
-  environment: prod
+labels:
+  - pairs:
+      environment: prod
 
 # Keep 2 replicas for prod (from base)
 replicas:
   - name: vulnerable-app
     count: 2
-
-# Prod-specific Contrast configuration (merges with base)
-configMapGenerator:
-  - name: contrast-config
-    behavior: merge
-    literals:
-      - CONTRAST__APPLICATION__TAGS=env:prod,team:demo,critical:true
 
 # Override image tag for prod (Harness will update this)
 images:
@@ -31,6 +25,13 @@ images:
 
 # Patches for prod-specific changes
 patches:
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: env:prod,team:demo,critical:true
+    target:
+      kind: Deployment
+      name: vulnerable-app
   - patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/memory

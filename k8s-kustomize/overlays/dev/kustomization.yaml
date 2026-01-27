@@ -9,20 +9,14 @@ resources:
 namespace: apps
 
 # Dev-specific labels
-commonLabels:
-  environment: dev
+labels:
+  - pairs:
+      environment: dev
 
 # Override replicas for dev
 replicas:
   - name: vulnerable-app
     count: 1
-
-# Dev-specific Contrast configuration (merges with base)
-configMapGenerator:
-  - name: contrast-config
-    behavior: merge
-    literals:
-      - CONTRAST__APPLICATION__TAGS=env:dev,team:demo
 
 # Override image tag for dev (Harness will update this)
 images:
@@ -31,6 +25,13 @@ images:
 
 # Patches for dev-specific changes
 patches:
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/value
+        value: env:dev,team:demo
+    target:
+      kind: Deployment
+      name: vulnerable-app
   - patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/resources/requests/memory

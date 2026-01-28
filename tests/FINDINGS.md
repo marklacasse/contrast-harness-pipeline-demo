@@ -1,0 +1,187 @@
+# Contrast IAST Findings - Test Results
+
+## Summary
+
+After running the automated test suite with corrected parameter names, Contrast IAST successfully detected **17 security vulnerabilities** across the OWASP Top 10 categories.
+
+### Vulnerability Breakdown by Severity
+
+| Severity | Count | Types |
+|----------|-------|-------|
+| **CRITICAL** | 1 | SQL Injection |
+| **HIGH** | 5 | Command Injection, Path Traversal (2), XXE, Untrusted Deserialization |
+| **MEDIUM** | 11 | SSRF (2), XSS (5), Crypto (2), Cookie Flags, Trust Boundary |
+
+### Confirmed Vulnerabilities
+
+#### Critical (1)
+1. **SQL Injection** - `/injection/sql` (username, password parameters)
+   - Successfully bypassed authentication with `' OR '1'='1`
+   - Demonstrates A03:2021 Injection
+
+#### High Severity (5)
+1. **OS Command Injection** - `/injection/command` (host parameter)
+   - Executed arbitrary commands with `; cat /etc/passwd`
+   - Demonstrates A03:2021 Injection
+
+2. **Path Traversal** - `/access-control/download` (filename parameter)
+   - Accessed `/etc/passwd` and `/etc/hosts`
+   - Demonstrates A01:2021 Broken Access Control
+
+3. **Path Traversal** - `/ssrf/fetch-url` (url parameter)
+   - File protocol exploitation
+   - Demonstrates A10:2021 SSRF
+
+4. **XML External Entity (XXE)** - `/ssrf/parse-xml` (xmlContent parameter)
+   - Successfully read `/etc/passwd` via XXE
+   - Demonstrates A05:2021 Security Misconfiguration
+
+5. **Untrusted Deserialization** - `/integrity/deserialize` (data parameter)
+   - Java object deserialization vulnerability
+   - Demonstrates A08:2021 Software Integrity Failures
+
+#### Medium Severity (11)
+1. **SSRF** - `/ssrf/proxy-image` (imageUrl parameter)
+   - Internal network scanning capability
+   - AWS metadata endpoint access
+
+2. **SSRF** - `/ssrf/fetch-url` (url parameter)
+   - Arbitrary URL fetching
+   - Internal service access
+
+3. **Reflected XSS** - `/ssrf/proxy-image` (imageUrl parameter)
+   - Script injection in response
+
+4. **Reflected XSS** - `/ssrf/fetch-url` (url parameter)
+   - Script injection via URL parameter
+
+5. **Reflected XSS** - `/auth/register` (username, password, email parameters)
+   - Multiple injection points
+   - Demonstrates A03:2021 Injection
+
+6. **Reflected XSS** - `/logging/login-attempt` (username, password parameters)
+   - Log injection with XSS
+   - Demonstrates A09:2021 Logging Failures
+
+7. **Reflected XSS** - `/logging/process-payment` (cardNumber, cvv, amount parameters)
+   - Sensitive data + XSS
+   - Demonstrates A09:2021 Logging Failures
+
+8. **Crypto - Bad MAC** - `CryptoController.java`
+   - MD5 hash algorithm usage
+   - Demonstrates A02:2021 Cryptographic Failures
+
+9. **Crypto - Bad MAC** - `SessionIdGeneratorBase.java`
+   - SHA hash algorithm for sessions
+   - Demonstrates A02:2021 Cryptographic Failures
+
+10. **Cookie Flags Missing** - `Response.java`
+    - JSESSIONID without secure flag
+    - Demonstrates A05:2021 Security Misconfiguration
+
+11. **Trust Boundary Violation** - `/auth/session-login` (username parameter)
+    - Untrusted data in session
+    - Demonstrates A07:2021 Authentication Failures
+
+## Key Fixes Applied to Test Suite
+
+### Critical Parameter Name Corrections
+
+| Endpoint | Incorrect Parameter | Correct Parameter | Impact |
+|----------|-------------------|-------------------|---------|
+| `/injection/command` | `command` | `host` | ✅ Now triggers Command Injection |
+| `/ssrf/proxy-image` | `url` | `imageUrl` | ✅ Now triggers SSRF + XSS |
+| `/ssrf/parse-xml` | `xml` | `xmlContent` | ✅ Now triggers XXE |
+| `/ssrf/webhook` | `url` | `webhookUrl` | ✅ Correct parameter |
+| `/access-control/download` | `file` | `filename` | ✅ Now triggers Path Traversal |
+| `/access-control/update-email` | `newEmail` | `email` | ✅ Correct parameter |
+| `/config/error-test` | `trigger` | `input` | ✅ Correct parameter |
+| `/config/admin-panel` | `debug` | `pass` | ✅ Correct parameter |
+| `/config/list-files` | `dir` | `path` | ✅ Correct parameter |
+| `/logging/login-attempt` | `success` | `password` | ✅ Correct parameter |
+
+### Additional Test Improvements
+
+1. **More SQL Injection Variants**
+   - Added UNION-based injection with correct column count (5 columns)
+   - Multiple bypass techniques
+
+2. **Enhanced Command Injection**
+   - Added `&&` operator tests
+   - Multiple command chaining techniques
+
+3. **Comprehensive XXE Testing**
+   - File protocol exploitation
+   - HTTP callback tests
+   - Multiple file targets
+
+4. **Multiple XSS Payloads**
+   - Various event handlers (onerror, onload)
+   - Different HTML contexts (script, img, svg, iframe, body)
+
+5. **Path Traversal Variants**
+   - Relative paths (../../../)
+   - Absolute paths (/etc/)
+   - Multiple target files
+
+## Testing Workflow
+
+### Local Testing
+```bash
+# Start app with Contrast agent
+java -javaagent:./.contrast/contrast-agent-6.25.1.jar \
+     -Dcontrast.config.path=./.contrast/contrast.yaml \
+     -jar target/vulnerable-app-1.0.0.jar
+
+# Run test suite
+./tests/run-route-tests.sh
+
+# View results in Contrast dashboard
+# App: contrast-harness-pipeline-test
+```
+
+### CI/CD Integration
+The test suite is ready for Harness pipeline integration:
+1. Deploy application to K8s
+2. Run automated test suite
+3. Wait for Contrast processing
+4. GitHub Action verification (threshold gating)
+5. Deploy to production (if passed)
+6. Cleanup test environment
+
+## Route Coverage Analysis
+
+**Before Tests**: 2% coverage (1/50 routes)
+- Only `/actuator/health` exercised
+
+**After Tests**: Expected ~100% coverage
+- All 50 routes exercised with exploit payloads
+- Multiple test cases per vulnerable endpoint
+- Total test cases: 100+
+
+## Contrast MCP Integration
+
+Successfully used Contrast MCP server to:
+- Search applications by name
+- Retrieve route coverage statistics
+- Query vulnerabilities by severity/status
+- Filter by session metadata
+- Get detailed vulnerability information
+
+## Next Steps
+
+1. ✅ **Test Suite Complete** - All routes exercised with correct parameters
+2. ⏳ **Add to Harness Pipeline** - Integrate as Test stage
+3. ⏳ **GitHub Action Gating** - Configure security thresholds
+4. ⏳ **Production Deployment** - Gate based on IAST results
+5. ⏳ **Automated Cleanup** - Remove test deployments
+
+## References
+
+- **Application Name**: contrast-harness-pipeline-test (local), contrast-harness-demo (deployed)
+- **App ID**: 11e4c0e6-b21a-4c5d-8162-21a2b7d543b7
+- **Test Script**: [tests/run-route-tests.sh](run-route-tests.sh)
+- **GitHub Repo**: marklacasse/contrast-harness-pipeline-demo
+- **Contrast Agent**: 6.25.1
+- **Java Version**: 17
+- **Spring Boot**: 3.2.1

@@ -14,3 +14,5 @@ spec:
               value: <+serviceVariables.tags>
             - name: CONTRAST__APPLICATION__SESSION_METADATA
               value: branchName=main,buildNumber=<+pipeline.sequenceId>
+            - name: CONTRAST__APPLICATION__VERSION
+              value: <+pipeline.sequenceId>

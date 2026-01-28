@@ -27,13 +27,6 @@ images:
 patches:
   - patch: |-
       - op: replace
-        path: /spec/template/spec/containers/0/env/3/value
-        value: env:prod,team:demo,critical:true
-    target:
-      kind: Deployment
-      name: vulnerable-app
-  - patch: |-
-      - op: replace
         path: /spec/template/spec/containers/0/resources/limits/memory
         value: "2Gi"
       - op: replace

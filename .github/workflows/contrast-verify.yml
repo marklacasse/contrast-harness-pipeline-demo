@@ -1,0 +1,124 @@
+name: Contrast Security Verification
+
+on:
+  # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      app-name:
+        description: 'Contrast application name to verify'
+        required: true
+        default: 'contrast-harness-demo'
+      build-number:
+        description: 'Build number to filter vulnerabilities'
+        required: false
+      wait-time:
+        description: 'Seconds to wait before checking (default: 60)'
+        required: false
+        default: '60'
+  
+  # Allow Harness or other workflows to call this
+  workflow_call:
+    inputs:
+      app-name:
+        description: 'Contrast application name to verify'
+        required: true
+        type: string
+      build-number:
+        description: 'Build number to filter vulnerabilities'
+        required: false
+        type: string
+      wait-time:
+        description: 'Seconds to wait before checking'
+        required: false
+        type: string
+        default: '60'
+    outputs:
+      verification-status:
+        description: 'Status of security verification (passed/failed)'
+        value: ${{ jobs.verify-security.outputs.status }}
+      vulnerability-count:
+        description: 'Number of vulnerabilities found'
+        value: ${{ jobs.verify-security.outputs.vuln-count }}
+    secrets:
+      CONTRAST_API_KEY:
+        required: true
+      CONTRAST_AUTHORIZATION:
+        required: true
+      CONTRAST_ORGANIZATION_ID:
+        required: true
+      CONTRAST_HOST:
+        required: true
+
+jobs:
+  verify-security:
+    runs-on: ubuntu-latest
+    name: Verify Security with Contrast
+    outputs:
+      status: ${{ steps.verify-result.outputs.status }}
+      vuln-count: ${{ steps.verify-result.outputs.count }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Wait for Contrast Processing
+        run: |
+          WAIT_TIME="${{ inputs.wait-time || '60' }}"
+          echo "⏳ Waiting ${WAIT_TIME} seconds for Contrast to process vulnerabilities..."
+          echo "This delay ensures all IAST findings are analyzed and available."
+          sleep ${WAIT_TIME}
+
+      - name: Contrast Security Verification
+        id: contrast-verify
+        continue-on-error: true
+        uses: Contrast-Security-OSS/integration-verify-github-action@v3
+        with:
+          # Required: Contrast API credentials
+          apiKey: ${{ secrets.CONTRAST_API_KEY }}
+          authHeader: ${{ secrets.CONTRAST_AUTHORIZATION }}
+          orgId: ${{ secrets.CONTRAST_ORGANIZATION_ID }}
+          apiUrl: ${{ secrets.CONTRAST_HOST }}
+          
+          # Application details
+          appName: ${{ github.event.inputs.app-name }}
+          
+          # Severity filters - fail if any critical or high vulnerabilities found
+          failThreshold: 0
+          severities: CRITICAL,HIGH
+          
+          # Optional: Filter by build/branch metadata
+          buildNumber: ${{ github.event.inputs.build-number }}
+          
+      - name: Set Verification Result
+        id: verify-result
+        if: always()
+        run: |
+          if [ "${{ steps.contrast-verify.outcome }}" == "success" ]; then
+            echo "status=passed" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "count=unknown" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Security Verification Passed
+        if: steps.contrast-verify.outcome == 'success'
+        run: |
+          echo "✅ Security verification passed!"
+          echo "No critical or high severity vulnerabilities found."
+          echo ""
+          echo "Application: ${{ inputs.app-name }}"
+          echo "Status: PASSED"
+          
+      - name: Security Verification Failed
+        if: steps.contrast-verify.outcome != 'success'
+        run: |
+          echo "❌ Security verification failed!"
+          echo "Critical or high severity vulnerabilities were found."
+          echo ""
+          echo "Application: ${{ inputs.app-name }}"
+          echo "Contrast Dashboard: ${{ secrets.CONTRAST_HOST }}"
+          echo ""
+          echo "Review the Contrast dashboard for vulnerability details."
+          echo "Status: FAILED"
+          exit 1

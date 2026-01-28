@@ -71,7 +71,7 @@ jobs:
       - name: Contrast Security Verification
         id: contrast-verify
         continue-on-error: true
-        uses: Contrast-Security-OSS/integration-verify-github-action@v3
+        uses: Contrast-Security-OSS/integration-verify-github-action@main
         with:
           # Required: Contrast API credentials
           apiKey: ${{ secrets.CONTRAST_API_KEY }}

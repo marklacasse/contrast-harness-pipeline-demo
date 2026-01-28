@@ -4,7 +4,8 @@
 # This script hits all 50 discovered routes to generate Contrast findings
 
 # Configuration
-BASE_URL="${BASE_URL:-http://localhost:8080}"
+SERVICE_URL="${1:-${BASE_URL:-http://localhost:8080}}"
+BASE_URL="$SERVICE_URL"
 VERBOSE="${VERBOSE:-false}"
 
 # Colors for output

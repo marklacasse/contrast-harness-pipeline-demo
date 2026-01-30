@@ -275,7 +275,7 @@ pipeline:
                         value: <+pipeline.sequenceId>
                       - name: BRANCH_NAME
                         type: String
-                        value: <+pipeline.variables.branchName>
+                        value: <+codebase.branch>
                     outputVariables: []
                   timeout: 2m
               - step:

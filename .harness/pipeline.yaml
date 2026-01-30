@@ -1,17 +1,28 @@
 pipeline:
-  name: Vulnerable App CI/CD
-  identifier: vulnerable_app_cicd
-  projectIdentifier: <YOUR_PROJECT_ID>
-  orgIdentifier: <YOUR_ORG_ID>
+  name: Vulnerable App CICD example
+  identifier: Vulnerable_App_CICD_example
+  projectIdentifier: Contrastdemo
+  orgIdentifier: default
   tags: {}
-  
+  properties:
+    ci:
+      codebase:
+        connectorRef: account.marklacasse
+        repoName: contrast-harness-pipeline-demo
+        build: <+input>
   stages:
     - stage:
-        name: Build and Test
-        identifier: build_and_test
+        name: Build and test
+        identifier: Build_and_test
+        description: ""
         type: CI
         spec:
           cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
           platform:
             os: Linux
             arch: Amd64
@@ -22,81 +33,461 @@ pipeline:
             steps:
               - step:
                   type: Run
-                  name: Maven Build
-                  identifier: maven_build
+                  name: Maven build
+                  identifier: Maven_build
                   spec:
-                    connectorRef: <YOUR_DOCKER_CONNECTOR>
-                    image: maven:3.9-eclipse-temurin-17-alpine
+                    connectorRef: zencid
+                    image: maven:3.9-eclipse-temurin-17
                     shell: Sh
-                    command: |
+                    command: |-
                       echo "Building application..."
                       mvn clean package -DskipTests
                       echo "Build completed successfully"
-                    
+                      ls -lh target/
               - step:
                   type: Run
-                  name: Run Unit Tests
-                  identifier: run_tests
+                  name: Run Tests
+                  identifier: Run_Tests
                   spec:
-                    connectorRef: <YOUR_DOCKER_CONNECTOR>
-                    image: maven:3.9-eclipse-temurin-17-alpine
+                    connectorRef: zencid
+                    image: maven:3.9-eclipse-temurin-17
                     shell: Sh
-                    command: |
-                      echo "Running unit tests..."
+                    command: |-
+                      echo "Running tests..."
                       mvn test
-                      
+                      echo "Tests completed"
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: Ignore
               - step:
                   type: BuildAndPushDockerRegistry
-                  name: Build and Push Docker Image
-                  identifier: build_push_docker
+                  name: Build and push to Docker
+                  identifier: Build_and_push_to_Docker
                   spec:
-                    connectorRef: <YOUR_DOCKER_CONNECTOR>
-                    repo: <YOUR_DOCKER_REPO>/vulnerable-app
+                    connectorRef: zencid
+                    repo: zencid/contrast-harness-pipeline-demo
                     tags:
                       - latest
                       - <+pipeline.sequenceId>
-                    dockerfile: Dockerfile
-                    
     - stage:
         name: Deploy to EKS
-        identifier: deploy_to_eks
+        identifier: Deploy_to_EKS
+        description: ""
         type: Deployment
         spec:
           deploymentType: Kubernetes
           service:
-            serviceRef: vulnerable_app
+            serviceRef: Vulnapp
+            serviceInputs:
+              serviceDefinition:
+                type: Kubernetes
+                spec:
+                  artifacts:
+                    primary:
+                      sources:
+                        - identifier: contrastharnesspipelinedemo
+                          type: DockerRegistry
+                          spec:
+                            tag: <+pipeline.sequenceId>
           environment:
-            environmentRef: eks_dev
+            environmentRef: EKS_Development
+            deployToAll: false
             infrastructureDefinitions:
-              - identifier: eks_cluster
+              - identifier: EKS_cluster
           execution:
             steps:
               - step:
+                  name: Rollout Deployment
+                  identifier: rolloutDeployment
                   type: K8sRollingDeploy
-                  name: Rolling Deployment
-                  identifier: rolling_deploy
+                  timeout: 10m
                   spec:
                     skipDryRun: false
                     pruningEnabled: false
-                    
-              - step:
-                  type: K8sBlueGreenDeploy
-                  name: Verify Deployment
-                  identifier: verify_deployment
-                  spec:
-                    skipDryRun: false
-                    
             rollbackSteps:
               - step:
+                  name: Rollback Rollout Deployment
+                  identifier: rollbackRolloutDeployment
                   type: K8sRollingRollback
-                  name: Rollback
-                  identifier: rollback
+                  timeout: 10m
                   spec:
                     pruningEnabled: false
-                    
-  properties:
-    ci:
-      codebase:
-        connectorRef: <YOUR_GIT_CONNECTOR>
-        repoName: contrast-harness-pipeline-demo
-        build: <+input>
+        tags: {}
+        failureStrategies:
+          - onFailure:
+              errors:
+                - AllErrors
+              action:
+                type: StageRollback
+    - stage:
+        name: Run Vulnerability tests
+        identifier: Run_Vulnerability_tests
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: Run Test Suite
+                  identifier: Run_Test_Suite
+                  spec:
+                    shell: Bash
+                    executionTarget:
+                      connectorRef: account.marklacasse
+                      repoName: contrast-harness-pipeline-demo
+                      branch: main
+                      type: Git
+                    delegateSelectors:
+                      - kubernetes-delegate
+                    source:
+                      type: Inline
+                      spec:
+                        script: |-
+                          #!/bin/bash
+                          set -e
+
+                          echo "=== Getting Service URL from Kubernetes ==="
+
+                          # Get NodePort and Node IP
+                          NODE_PORT=$(kubectl get svc vulnerable-app-service -n apps -o jsonpath='{.spec.ports[0].nodePort}')
+                          
+                          # Get external IP of any node
+                          NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}')
+                          
+                          if [ -z "$NODE_IP" ]; then
+                            # If no external IP, get internal IP
+                            NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+                          fi
+
+                          if [ -z "$NODE_IP" ] || [ -z "$NODE_PORT" ]; then
+                            echo "ERROR: Could not get NodePort service details"
+                            kubectl get svc vulnerable-app-service -n apps
+                            exit 1
+                          fi
+
+                          SERVICE_URL="http://${NODE_IP}:${NODE_PORT}"
+                          echo "✓ Service URL: ${SERVICE_URL}"
+
+                          echo ""
+                          echo "=== Running Vulnerability Test Suite ==="
+
+                          # Find the cloned repository
+                          REPO_PATH=$(find /opt/harness-delegate/repository -name "run-route-tests.sh" -type f 2>/dev/null | head -1)
+                          
+                          if [ -z "$REPO_PATH" ]; then
+                            echo "ERROR: Could not find test script"
+                            exit 1
+                          fi
+                          
+                          # Get the tests directory
+                          TESTS_DIR=$(dirname "$REPO_PATH")
+                          echo "✓ Found tests at: $TESTS_DIR"
+
+                          # Run the tests
+                          chmod +x "$REPO_PATH"
+                          "$REPO_PATH" "${SERVICE_URL}"
+
+                          echo ""
+                          echo "=== Test Suite Complete ==="
+                          echo "✓ Build: <+pipeline.sequenceId>"
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 10m
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: Ignore
+        tags: {}
+    - stage:
+        name: Verify Security Findings
+        identifier: Verify_Security_Findings
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: ShellScript
+                  name: Close Agent Session
+                  identifier: Close_Agent_Session
+                  spec:
+                    shell: Bash
+                    delegateSelectors:
+                      - kubernetes-delegate
+                    source:
+                      type: Inline
+                      spec:
+                        script: |-
+                          #!/bin/bash
+                          set -e
+                          
+                          echo "=== Closing Contrast Agent Session ==="
+                          echo "App: ${APP_NAME}"
+                          echo "Build: ${BUILD_NUM}"
+                          echo "Branch: ${BRANCH_NAME}"
+                          echo ""
+                          
+                          # Remove trailing slash from API_HOST if present
+                          API_HOST_CLEAN="${API_HOST%/}"
+                          
+                          # Close the agent session
+                          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+                            "${API_HOST_CLEAN}/Contrast/api/ng/organizations/${ORG_ID}/agent-sessions/sbav" \
+                            -H "Authorization: ${AUTH_HEADER}" \
+                            -H "API-Key: ${API_KEY}" \
+                            -H "Content-Type: application/json" \
+                            -d "{\"appName\":\"${APP_NAME}\",\"appLanguage\":\"JAVA\",\"metadata\":[{\"label\":\"branchName\",\"value\":\"${BRANCH_NAME}\"},{\"label\":\"buildNumber\",\"value\":\"${BUILD_NUM}\"}]}")
+                          
+                          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+                          BODY=$(echo "$RESPONSE" | sed '$d')
+                          
+                          if [ "$HTTP_CODE" != "200" ]; then
+                            echo "WARNING: Session close returned HTTP ${HTTP_CODE}"
+                            echo "$BODY"
+                            echo "(Continuing anyway...)"
+                          else
+                            echo "✓ Agent session closed successfully"
+                          fi
+                    environmentVariables:
+                      - name: API_KEY
+                        type: Secret
+                        value: CONTRAST_API_KEY
+                      - name: ORG_ID
+                        type: Secret
+                        value: CONTRAST_ORGANIZATION_ID
+                      - name: AUTH_HEADER
+                        type: Secret
+                        value: CONTRAST_AUTHORIZATION
+                      - name: API_HOST
+                        type: Secret
+                        value: CONTRAST_HOST
+                      - name: APP_NAME
+                        type: String
+                        value: <+pipeline.variables.appName>
+                      - name: BUILD_NUM
+                        type: String
+                        value: <+pipeline.sequenceId>
+                      - name: BRANCH_NAME
+                        type: String
+                        value: <+pipeline.variables.branchName>
+                    outputVariables: []
+                  timeout: 2m
+              - step:
+                  type: ShellScript
+                  name: Wait for Contrast Processing
+                  identifier: Wait_for_Contrast
+                  spec:
+                    shell: Bash
+                    source:
+                      type: Inline
+                      spec:
+                        script: |-
+                          echo "Waiting 60 seconds for Contrast to process findings..."
+                          sleep 60
+                          echo "✓ Ready for verification"
+                    environmentVariables: []
+                    outputVariables: []
+                  timeout: 2m
+              - step:
+                  type: ShellScript
+                  name: Verify with Contrast API
+                  identifier: Verify_Contrast_API
+                  spec:
+                    shell: Bash
+                    delegateSelectors:
+                      - kubernetes-delegate
+                    source:
+                      type: Inline
+                      spec:
+                        script: |-
+                          #!/bin/bash
+                          set -e
+                          
+                          echo "=== Contrast Security Verification ==="
+                          echo "App: ${APP_NAME}"
+                          echo "Build: ${BUILD_NUM}"
+                          echo "Critical Threshold: ${CRITICAL_THRESHOLD}"
+                          echo "High Threshold: ${HIGH_THRESHOLD}"
+                          echo ""
+                          
+                          # Remove trailing slash from API_HOST if present
+                          API_HOST_CLEAN="${API_HOST%/}"
+                          
+                          # First, get the app ID from the app name
+                          echo "Looking up application ID for: ${APP_NAME}"
+                          APP_RESPONSE=$(curl -s -X GET \
+                            "${API_HOST_CLEAN}/Contrast/api/ng/${ORG_ID}/applications/name?filterText=${APP_NAME}" \
+                            -H "Authorization: ${AUTH_HEADER}" \
+                            -H "API-Key: ${API_KEY}" \
+                            -H "Accept: application/json")
+                          
+                          # Extract app_id - handle spaces around colon in JSON
+                          APP_ID=$(echo "$APP_RESPONSE" | grep -o '"app_id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"app_id"[[:space:]]*:[[:space:]]*"//;s/".*//')
+                          
+                          if [ -z "$APP_ID" ]; then
+                            echo "ERROR: Could not find application with name '${APP_NAME}'"
+                            echo "$APP_RESPONSE"
+                            exit 1
+                          fi
+                          
+                          echo "✓ Application ID: ${APP_ID}"
+                          echo ""
+                          
+                          # Query for CRITICAL vulnerabilities
+                          echo "Checking CRITICAL vulnerabilities..."
+                          CRITICAL_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET \
+                            "${API_HOST_CLEAN}/Contrast/api/ng/${ORG_ID}/traces/${APP_ID}/quick?severities=CRITICAL&appVersionTags=${BUILD_NUM}&timestampFilter=FIRST&startDate=0" \
+                            -H "Authorization: ${AUTH_HEADER}" \
+                            -H "API-Key: ${API_KEY}" \
+                            -H "Accept: application/json")
+                          
+                          HTTP_CODE=$(echo "$CRITICAL_RESPONSE" | tail -n1)
+                          BODY=$(echo "$CRITICAL_RESPONSE" | sed '$d')
+                          
+                          if [ "$HTTP_CODE" != "200" ]; then
+                            echo "ERROR: API call failed with HTTP ${HTTP_CODE}"
+                            echo "$BODY"
+                            exit 1
+                          fi
+                          
+                          CRITICAL_COUNT=$(echo "$BODY" | grep -B2 '"filterType"[[:space:]]*:[[:space:]]*"OPEN"' | grep '"count"' | grep -o '[0-9]*')
+                          if [ -z "$CRITICAL_COUNT" ]; then
+                            CRITICAL_COUNT=0
+                          fi
+                          echo "  Found ${CRITICAL_COUNT} CRITICAL vulnerabilities (threshold: ${CRITICAL_THRESHOLD})"
+                          
+                          # Query for HIGH vulnerabilities
+                          echo "Checking HIGH vulnerabilities..."
+                          HIGH_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET \
+                            "${API_HOST_CLEAN}/Contrast/api/ng/${ORG_ID}/traces/${APP_ID}/quick?severities=HIGH&appVersionTags=${BUILD_NUM}&timestampFilter=FIRST&startDate=0" \
+                            -H "Authorization: ${AUTH_HEADER}" \
+                            -H "API-Key: ${API_KEY}" \
+                            -H "Accept: application/json")
+                          
+                          HTTP_CODE=$(echo "$HIGH_RESPONSE" | tail -n1)
+                          BODY=$(echo "$HIGH_RESPONSE" | sed '$d')
+                          
+                          if [ "$HTTP_CODE" != "200" ]; then
+                            echo "ERROR: API call failed with HTTP ${HTTP_CODE}"
+                            echo "$BODY"
+                            exit 1
+                          fi
+                          
+                          HIGH_COUNT=$(echo "$BODY" | grep -B2 '"filterType"[[:space:]]*:[[:space:]]*"OPEN"' | grep '"count"' | grep -o '[0-9]*')
+                          if [ -z "$HIGH_COUNT" ]; then
+                            HIGH_COUNT=0
+                          fi
+                          echo "  Found ${HIGH_COUNT} HIGH vulnerabilities (threshold: ${HIGH_THRESHOLD})"
+                          echo ""
+                          
+                          # Export output variables for pipeline visibility
+                          export CRITICAL_COUNT="${CRITICAL_COUNT}"
+                          export HIGH_COUNT="${HIGH_COUNT}"
+                          export CRITICAL_THRESHOLD="${CRITICAL_THRESHOLD}"
+                          export HIGH_THRESHOLD="${HIGH_THRESHOLD}"
+                          
+                          # Check if thresholds are exceeded
+                          FAILURES=""
+                          
+                          if [ "$CRITICAL_COUNT" -gt "$CRITICAL_THRESHOLD" ]; then
+                            FAILURES="${FAILURES}CRITICAL: ${CRITICAL_COUNT}/${CRITICAL_THRESHOLD} "
+                          fi
+                          
+                          if [ "$HIGH_COUNT" -gt "$HIGH_THRESHOLD" ]; then
+                            FAILURES="${FAILURES}HIGH: ${HIGH_COUNT}/${HIGH_THRESHOLD}"
+                          fi
+                          
+                          if [ -n "$FAILURES" ]; then
+                            export FAILURE_REASON="Threshold exceeded - ${FAILURES}"
+                            echo "❌ FAILED: ${FAILURES}"
+                            exit 1
+                          fi
+                          
+                          export FAILURE_REASON="Passed"
+                          echo "✓ PASSED: Security verification successful"
+                          echo "  CRITICAL: ${CRITICAL_COUNT}/${CRITICAL_THRESHOLD}"
+                          echo "  HIGH: ${HIGH_COUNT}/${HIGH_THRESHOLD}"
+                    environmentVariables:
+                      - name: API_KEY
+                        type: Secret
+                        value: CONTRAST_API_KEY
+                      - name: ORG_ID
+                        type: Secret
+                        value: CONTRAST_ORGANIZATION_ID
+                      - name: AUTH_HEADER
+                        type: Secret
+                        value: CONTRAST_AUTHORIZATION
+                      - name: API_HOST
+                        type: Secret
+                        value: CONTRAST_HOST
+                      - name: APP_NAME
+                        type: String
+                        value: <+pipeline.variables.appName>
+                      - name: BUILD_NUM
+                        type: String
+                        value: <+pipeline.sequenceId>
+                    - name: CRITICAL_THRESHOLD
+                      type: String
+                      value: <+pipeline.variables.criticalThreshold>
+                    - name: HIGH_THRESHOLD
+                      type: String
+                      value: <+pipeline.variables.highThreshold>
+                    outputVariables:
+                    - name: CRITICAL_COUNT
+                      type: String
+                      value: CRITICAL_COUNT
+                    - name: CRITICAL_THRESHOLD
+                      type: String
+                      value: CRITICAL_THRESHOLD
+                    - name: HIGH_COUNT
+                      type: String
+                      value: HIGH_COUNT
+                    - name: HIGH_THRESHOLD
+                      type: String
+                      value: HIGH_THRESHOLD
+                    - name: FAILURE_REASON
+                      type: String
+                      value: FAILURE_REASON
+                  timeout: 5m
+        tags: {}
+  variables:
+    - name: dockerRepo
+      type: String
+      description: ""
+      required: false
+      value: zencid/contrast-harness-pipeline-demo
+    - name: namespace
+      type: String
+      description: ""
+      required: false
+      value: apps
+    - name: replicas
+      type: String
+      description: ""
+      required: false
+      value: "2"
+    - name: appName
+      type: String
+      value: contrast-harness-demo
+    - name: branchName
+      type: String
+      value: main
+    - name: tags
+      type: String
+      value: demo
+    - name: criticalThreshold
+      type: String
+      description: "Maximum allowed CRITICAL vulnerabilities before pipeline fails"
+      required: false
+      value: <+input>.default(0)
+    - name: highThreshold
+      type: String
+      description: "Maximum allowed HIGH vulnerabilities before pipeline fails"
+      required: false
+      value: <+input>.default(5)

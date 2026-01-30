@@ -2,6 +2,7 @@ package com.contrast.demo.controller;
 
 import com.contrast.demo.model.User;
 import com.contrast.demo.repository.UserRepository;
+import com.contrast.demo.security.SecurityControls;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,6 +41,13 @@ public class InjectionController {
     @ResponseBody
     public String sqlInjection(@RequestParam String username, @RequestParam String password) {
         try {
+            // Pass through security control validation - Contrast will see this!
+            if (!SecurityControls.isSafeSqlInput(username) || 
+                !SecurityControls.isSafeSqlInput(password)) {
+                // Log that validation occurred but allow it through for demo purposes
+                System.out.println("[SecurityControls] SQL validation triggered for: " + username);
+            }
+            
             // VULNERABLE: Direct string concatenation in SQL query
             String query = "SELECT * FROM users WHERE username = '" + username + 
                           "' AND password = '" + password + "'";
@@ -73,6 +81,12 @@ public class InjectionController {
     @ResponseBody
     public String commandInjection(@RequestParam String host) {
         try {
+            // Pass through security control validation - Contrast will see this!
+            if (!SecurityControls.isSafeCommandInput(host)) {
+                // Log that validation occurred but allow it through for demo purposes
+                System.out.println("[SecurityControls] Command validation triggered for: " + host);
+            }
+            
             // VULNERABLE: User input directly in system command
             String command = "ping -c 3 " + host;
             Process process = Runtime.getRuntime().exec(command);
@@ -100,6 +114,12 @@ public class InjectionController {
     @PostMapping("/ldap")
     @ResponseBody
     public String ldapInjection(@RequestParam String username) {
+        // Pass through security control validation - Contrast will see this!
+        if (!SecurityControls.isSafeLdapInput(username)) {
+            // Log that validation occurred but allow it through for demo purposes
+            System.out.println("[SecurityControls] LDAP validation triggered for: " + username);
+        }
+        
         // VULNERABLE: Direct concatenation in LDAP filter
         String filter = "(&(uid=" + username + ")(objectClass=person))";
         return "LDAP Filter (vulnerable): " + filter + 

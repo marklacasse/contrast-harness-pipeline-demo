@@ -37,3 +37,6 @@ build/
 ### contrast values ###
 values.yaml
 .contrast/
+app.log
+app.pid
+test-results.log

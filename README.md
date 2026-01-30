@@ -242,6 +242,16 @@ contrast-harness-pipeline-demo/
 11. ✅ Disable verbose error messages in production
 12. ✅ Implement proper logging without sensitive data
 
+## 📚 Documentation
+
+Comprehensive documentation is available in the [docs](./docs) folder:
+
+- **[Harness Pipeline Guide](./docs/harness-pipeline.md)** - Complete CI/CD pipeline setup with security gates
+- **[Security Controls Guide](./docs/security-controls.md)** - Custom validators/sanitizers for Contrast IAST
+- **[Contrast Setup](./docs/contrast-setup.md)** - Contrast Security configuration
+- **[Testing Guide](./docs/testing.md)** - Automated vulnerability test suite
+- **[Vulnerability Findings](./docs/vulnerability-findings.md)** - Expected vulnerabilities and classifications
+
 ## 🤝 Contributing
 
 This is a demo application for testing purposes. If you find additional vulnerabilities to demonstrate or improvements:
@@ -267,14 +277,11 @@ The authors are not responsible for any misuse of this application.
 ## 🔗 Resources
 
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [Contrast Security](https://www.contrastsecurity.com/)
 - [Harness Documentation](https://docs.harness.io/)
 - [Spring Boot Security](https://spring.io/projects/spring-security)
-- [AWS EKS Documentation](https://docs.aws.amazon.com/eks/)
-
-## 📧 Contact
-
-For questions or issues, please open an issue in the repository.
 
 ---
 
 **Remember**: Use responsibly and only in isolated testing environments! 🔒
+

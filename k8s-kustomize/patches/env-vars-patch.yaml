@@ -13,6 +13,6 @@ spec:
             - name: CONTRAST__APPLICATION__TAGS
               value: <+serviceVariables.tags>
             - name: CONTRAST__APPLICATION__SESSION_METADATA
-              value: branchName=main,buildNumber=<+pipeline.sequenceId>
+              value: branchName=<+codebase.branch>,buildNumber=<+pipeline.sequenceId>
             - name: CONTRAST__APPLICATION__VERSION
               value: <+pipeline.sequenceId>

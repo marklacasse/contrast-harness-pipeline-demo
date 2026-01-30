@@ -1,0 +1,79 @@
+- step:
+    type: ShellScript
+    name: Verify with Contrast API
+    identifier: Verify_Contrast_API
+    spec:
+      shell: Bash
+      onDelegate: true
+      source:
+        type: Inline
+        spec:
+          script: |-
+            #!/bin/bash
+            set -e
+            
+            echo "=== Contrast Security Verification ==="
+            
+            # Secrets are now available as environment variables
+            echo "App: ${APP_NAME}"
+            echo "Build: ${BUILD_NUM}"
+            echo "Checking for CRITICAL and HIGH severity vulnerabilities..."
+            
+            # Ensure API_HOST has protocol
+            if [[ ! "$API_HOST" =~ ^https?:// ]]; then
+              API_HOST="https://${API_HOST}"
+            fi
+            
+            # Query Contrast API for vulnerabilities
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X GET \
+              "${API_HOST}/Contrast/api/ng/${ORG_ID}/traces/${APP_NAME}/filter?severities=CRITICAL,HIGH&appVersionTags=${BUILD_NUM}" \
+              -H "Authorization: ${AUTH_HEADER}" \
+              -H "API-Key: ${API_KEY}" \
+              -H "Content-Type: application/json")
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+            
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "ERROR: API call failed with status ${HTTP_CODE}"
+              echo "$BODY"
+              exit 1
+            fi
+            
+            # Count vulnerabilities
+            COUNT=$(echo "$BODY" | grep -o '"uuid"' | wc -l | tr -d ' ')
+            
+            echo ""
+            echo "Found ${COUNT} CRITICAL/HIGH vulnerabilities"
+            
+            # Fail if count exceeds threshold
+            THRESHOLD=1
+            if [ "$COUNT" -ge "$THRESHOLD" ]; then
+              echo ""
+              echo "❌ FAILED: Vulnerability count (${COUNT}) exceeds threshold (${THRESHOLD})"
+              exit 1
+            fi
+            
+            echo ""
+            echo "✓ PASSED: Security verification successful"
+      environmentVariables:
+        - name: API_KEY
+          type: String
+          value: <+secrets.getValue("CONTRAST_API_KEY")>
+        - name: ORG_ID
+          type: String
+          value: <+secrets.getValue("CONTRAST_ORGANIZATION_ID")>
+        - name: AUTH_HEADER
+          type: String
+          value: <+secrets.getValue("CONTRAST_AUTHORIZATION")>
+        - name: API_HOST
+          type: String
+          value: <+secrets.getValue("CONTRAST_HOST")>
+        - name: APP_NAME
+          type: String
+          value: <+pipeline.variables.appName>
+        - name: BUILD_NUM
+          type: String
+          value: <+pipeline.sequenceId>
+      outputVariables: []
+    timeout: 5m

@@ -475,9 +475,6 @@ pipeline:
     - name: appName
       type: String
       value: contrast-harness-demo
-    - name: branchName
-      type: String
-      value: main
     - name: tags
       type: String
       value: demo

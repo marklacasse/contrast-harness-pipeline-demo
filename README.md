@@ -95,22 +95,14 @@ flowchart TB
     Y -.->|Status Update| O
     Z -.->|Status Update| O
 
-    subgraph Monitoring["📊 Monitoring & Feedback"]
-        O --> AC[Contrast Dashboard]
-        AC --> AD[Vulnerability Trends]
-        AC --> AE[Security Posture]
-        AC --> AF[Build-Specific Findings]
-    end
-
-    style Developer fill:#e1f5fe
-    style Harness fill:#fff3e0
-    style Kubernetes fill:#f3e5f5
-    style Runtime fill:#e8f5e9
-    style ContrastPlatform fill:#fce4ec
-    style SecurityGate fill:#fff9c4
-    style AutoRemediation fill:#e0f2f1
-    style Monitoring fill:#f5f5f5
-    style ContrastOp fill:#ede7f6
+    style Developer fill:#0277bd,stroke:#01579b,stroke-width:2px,color:#fff
+    style Harness fill:#e65100,stroke:#bf360c,stroke-width:2px,color:#fff
+    style Kubernetes fill:#6a1b9a,stroke:#4a148c,stroke-width:2px,color:#fff
+    style Runtime fill:#2e7d32,stroke:#1b5e20,stroke-width:2px,color:#fff
+    style ContrastPlatform fill:#c62828,stroke:#b71c1c,stroke-width:2px,color:#fff
+    style SecurityGate fill:#f57f17,stroke:#f57f17,stroke-width:2px,color:#000
+    style AutoRemediation fill:#00695c,stroke:#004d40,stroke-width:2px,color:#fff
+    style ContrastOp fill:#4527a0,stroke:#311b92,stroke-width:2px,color:#fff
 ```
 
 ### 🔗 Key Integration Points

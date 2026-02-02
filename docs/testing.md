@@ -122,21 +122,6 @@ This test suite can be integrated into your Harness pipeline:
         BASE_URL=http://$SERVICE_URL:8080 ./tests/run-route-tests.sh
 ```
 
-## GitHub Action Integration
-
-After running tests, use the Contrast verification action:
-
-```yaml
-- name: Verify Security with Contrast
-  uses: Contrast-Security-OSS/integration-verify-github-action@v1
-  with:
-    api-key: ${{ secrets.CONTRAST_API_KEY }}
-    organization-id: ${{ secrets.CONTRAST_ORG_ID }}
-    app-name: contrast-harness-demo
-    fail-threshold: high
-    severities: critical,high
-```
-
 ## Troubleshooting
 
 ### Application not available

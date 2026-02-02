@@ -29,7 +29,136 @@ This application contains **deliberately vulnerable code** designed for testing 
 - **Orchestration**: Kubernetes (EKS)
 - **CI/CD**: Harness
 
-## 🐛 Implemented Vulnerabilities (OWASP Top 10)
+## � System Architecture & Process Flow
+
+```mermaid
+flowchart TB
+    subgraph Developer["👨‍💻 Developer Workflow"]
+        A[Code Commit] --> B[Git Push]
+    end
+
+    subgraph Harness["🚀 Harness CI/CD Pipeline"]
+        B --> C[Pipeline Trigger]
+        C --> D[Maven Build]
+        D --> E[Unit Tests]
+        E --> F[Docker Build & Push]
+        F --> G[Deploy to Kubernetes]
+    end
+
+    subgraph Kubernetes["☸️ Kubernetes Cluster (EKS)"]
+        G --> H[Pod Creation]
+        H --> I[Contrast Agent Injection]
+        I --> J[Application Start]
+        
+        subgraph ContrastOp["Contrast K8s Operator"]
+            I1[Agent Authentication]
+            I2[Auto-Instrumentation]
+        end
+        
+        I -.->|Managed by| ContrastOp
+    end
+
+    subgraph Runtime["🔬 Runtime Security Testing"]
+        J --> K[Execute Tests]
+        K --> L[Contrast Agent Observes]
+        L --> M[Security Controls Detection]
+        M --> N[Vulnerability Analysis]
+    end
+
+    subgraph ContrastPlatform["🛡️ Contrast Security Platform"]
+        L -.->|Real-time Data| O[Vulnerability Database]
+        M -.->|Stack Traces| O
+        N -.->|Session Data| O
+        O --> P[Security Analysis Engine]
+    end
+
+    subgraph SecurityGate["🚦 Security Gate Verification"]
+        N --> Q[Close Agent Session]
+        Q --> R[Query Contrast API]
+        R --> S{Check Thresholds}
+        S -->|CRITICAL Count| T[Critical: Max 0]
+        S -->|HIGH Count| U[High: Max 5]
+        T --> V{Pass?}
+        U --> V
+    end
+
+    subgraph AutoRemediation["✨ Auto-Remediation"]
+        P --> W[Detect Security Controls]
+        W --> X{Control Validates Input?}
+        X -->|Yes| Y[Auto-Remediate Vuln]
+        X -->|No| Z[Report Vulnerability]
+    end
+
+    V -->|Yes| AA[✅ Pipeline Success]
+    V -->|No| AB[❌ Pipeline Failure]
+    
+    Y -.->|Status Update| O
+    Z -.->|Status Update| O
+
+    subgraph Monitoring["📊 Monitoring & Feedback"]
+        O --> AC[Contrast Dashboard]
+        AC --> AD[Vulnerability Trends]
+        AC --> AE[Security Posture]
+        AC --> AF[Build-Specific Findings]
+    end
+
+    style Developer fill:#e1f5fe
+    style Harness fill:#fff3e0
+    style Kubernetes fill:#f3e5f5
+    style Runtime fill:#e8f5e9
+    style ContrastPlatform fill:#fce4ec
+    style SecurityGate fill:#fff9c4
+    style AutoRemediation fill:#e0f2f1
+    style Monitoring fill:#f5f5f5
+    style ContrastOp fill:#ede7f6
+```
+
+### 🔗 Key Integration Points
+
+1. **Contrast Agent Injection** (Kubernetes)
+   - Contrast K8s Operator automatically injects agent into pods
+   - Agent credentials managed via Helm (outside this repo)
+   - Application config (name, tags, metadata) via Kustomize patches
+
+2. **Session Tracking** (Runtime)
+   - Dynamic session metadata: `branchName=<branch>,buildNumber=<build>`
+   - Enables per-build vulnerability tracking
+   - Facilitates trend analysis across branches
+
+3. **Security Controls Integration** (Application)
+   - Custom validators: `SecurityControls.isSafeSqlInput()`, `isSafeCommandInput()`, `isSafeLdapInput()`
+   - Contrast observes controls in stack traces
+   - Triggers auto-remediation when controls properly validate inputs
+
+4. **Security Gate** (Pipeline)
+   - Two independent API calls: CRITICAL and HIGH severities
+   - Separate thresholds: CRITICAL (max: 0), HIGH (max: 5)
+   - Pipeline fails if EITHER threshold exceeded
+   - Uses API credentials (NOT agent credentials)
+
+5. **Auto-Remediation** (Contrast Platform)
+   - Analyzes stack traces after session close
+   - Identifies security control methods
+   - Auto-remediates vulnerabilities with proper input validation
+   - Example: CMDi with `isSafeCommandInput()` → Remediated
+
+### 📊 Data Flow
+
+```
+Code → Build → Deploy → Instrument → Test → Analyze → Gate → Report
+         ↓                    ↓          ↓        ↓       ↓      ↓
+      Docker            Contrast    Security  Vuln DB  Pass/  Dashboard
+      Image              Agent      Controls           Fail
+```
+
+### 🎯 Deployment Environments
+
+- **Local Development**: Manual agent configuration via `.contrast/contrast.yaml`
+- **Kubernetes/Harness**: Automated agent injection via Contrast K8s Operator
+- **Both**: Share org-wide credentials (Org ID, API Host, API Key)
+- **Distinct**: Per-user service keys and agent tokens
+
+## �🐛 Implemented Vulnerabilities (OWASP Top 10)
 
 ### A01:2021 - Broken Access Control
 - ✅ Insecure Direct Object Reference (IDOR)

@@ -1,292 +1,350 @@
-# GitHub Action Setup for Contrast Security Verification
-
-This document explains how to set up the Contrast Security verification GitHub Action for automated security gating.
+# Contrast Security Setup
 
 ## Overview
 
-The Contrast Security verification workflow should run **after** your application has been deployed and tested. The workflow:
-1. Waits for Contrast IAST to process findings (configurable delay, default 60 seconds)
-2. Queries Contrast for vulnerabilities in the deployed application
-3. Fails the pipeline if critical or high severity vulnerabilities are found
-4. Returns status and results for pipeline gating decisions
+This guide covers Contrast Security integration for the Harness CI/CD pipeline, focusing on:
+- **Application configuration** via Kubernetes manifests (this repo)
+- **API credentials** for pipeline verification security gates
+- **Local dev testing** with agent credentials
 
-### Pipeline Timing
+**Note**: Agent authentication credentials are handled by the Contrast Kubernetes Operator installed via Helm (not covered here). This repo configures the application-level settings (name, tags, metadata) via Kustomize.
 
+## Contrast Agent Configuration
+
+The agent is configured via environment variables in the Kubernetes deployment. See `k8s-kustomize/patches/env-vars-patch.yaml`:
+
+```yaml
+env:
+  - name: CONTRAST__APPLICATION__NAME
+    value: contrast-harness-demo
+  - name: CONTRAST__APPLICATION__TAGS
+    value: demo
+  - name: CONTRAST__APPLICATION__SESSION_METADATA
+    value: branchName=<+codebase.branch>,buildNumber=<+pipeline.sequenceId>
+  - name: CONTRAST__APPLICATION__VERSION
+    value: <+pipeline.sequenceId>
 ```
-Deploy → Run Tests → Wait (60s) → Check Contrast → Gate Promotion
+
+### Configuration Details
+
+**Application Name**: `CONTRAST__APPLICATION__NAME`
+- Must match exactly in Contrast UI and pipeline verification
+- Example: `contrast-harness-demo`
+
+**Application Tags**: `CONTRAST__APPLICATION__TAGS`
+- Comma-separated tags for organizing applications
+- Used for filtering in Contrast UI
+- Example: `demo,ci-cd,testing`
+
+**Session Metadata**: `CONTRAST__APPLICATION__SESSION_METADATA`
+- Key-value pairs for tracking builds
+- Format: `key1=value1,key2=value2`
+- Used to filter vulnerabilities by build/branch
+- Dynamic variables:
+  - `<+codebase.branch>` - Git branch being built
+  - `<+pipeline.sequenceId>` - Harness build number
+
+**Application Version**: `CONTRAST__APPLICATION__VERSION`
+- Version identifier for the deployment
+- Typically set to build number
+- Used for gating pipelines in the Harness platform based on vulnerability thresholds
+
+## Contrast Credentials Overview
+
+Contrast requires **two separate sets of credentials** that serve different purposes and **must not be mixed**:
+
+### 1. Agent Credentials (Runtime Authentication)
+**Purpose**: Used by the Contrast agent running with your application to authenticate and send vulnerability data to the Contrast SaaS platform.
+
+**Used by**: The agent embedded in your application runtime
+**Configured in this project**: ❌ No - Handled by Contrast Kubernetes Operator via Helm
+**Used for local testing**: ✅ Yes - Via `.contrast/contrast.yaml` file
+
+**Authentication method**: Agent token (newer) or Agent Keys (legacy)
+**Permissions**: Controlled account for agent-to-platform communication
+
+**Best Practice**: Create a dedicated agent token for the Kubernetes Operator.
+
+**Documentation**: 
+- [Agent Configuration Settings](https://docs.contrastsecurity.com/en/configuration-settings.html)
+- [Finding Agent Keys](https://docs.contrastsecurity.com/en/find-the-agent-keys.html)
+
+### 2. API/Service User Credentials (Verification Authentication)
+**Purpose**: Used by the pipeline to query the Contrast API for vulnerability verification and security gates.
+
+**Used by**: Harness pipeline verification steps (API calls)
+**Configured in this project**: ✅ Yes - As Harness secrets (see Harness Pipeline Guide)
+**Used for local testing**: ❌ No - Not needed for local agent testing
+
+**Authentication method**: User API key + Authorization header
+**Permissions**: Service user with RBAC limited to view access for vulnerabilities
+
+**Best Practice**: Create a dedicated service user in Contrast with minimal required permissions (view vulnerabilities only).
+
+---
+
+## Getting Agent Credentials (For Local Testing Only)
+
+**Note**: In the Kubernetes/Harness pipeline, agent authentication is handled by the Contrast Operator. These steps are only needed for local development testing.
+
+### Creating an Agent Token (Recommended)
+
+1. Log into Contrast: https://app.contrastsecurity.com (or your instance)
+2. Click organization name (top right) → **Organization Settings**
+3. Navigate to **Agent Keys** section
+4. Click **Add key name**
+5. Enter key name (e.g., `local-dev-testing`) → click **Save key name**
+6. Copy the generated token
+7. Use this token in your local `.contrast/contrast.yaml` file
+
+### Getting Agent Keys (Legacy Method)
+
+1. Log into Contrast:
+2. Click organization name (top right) → **Organization Settings**
+3. Navigate to **Agent Keys** section
+4. Click **Add key name**
+5. Enter key name (e.g., `local-dev-testing`) → click **Save key name**
+6. Expand **Legacy Agent Keys**
+7. Copy:
+   - **Agent Key Name(API username)**
+   - **Agent Service Key**
+   - **Agent API Key**
+   - **Contrast Agent URL**
+8. Use this token in your local `.contrast/contrast.yaml` file
+
+### Agent Configuration in Kubernetes (Reference Only)
+
+**In this project**, agent authentication is configured by the Contrast Kubernetes Operator (installed via Helm, outside this repo).
+
+The operator handles:
+- Agent credentials injection
+- Agent attachment to pods
+- Runtime instrumentation
+
+**This project configures** (via Kustomize):
+- Application name, tags, metadata
+- Session metadata (build/branch tracking)
+- Application version
+
+See `k8s-kustomize/patches/env-vars-patch.yaml` for application configuration.
+
+## Getting API Credentials (Pipeline Verification)
+
+For configuring Harness pipeline verification steps (see [Harness Pipeline Guide](./harness-pipeline.md#required-secrets) for setup):
+
+### Creating a Service User (Recommended)
+
+1. Log into Contrast as an admin
+2. Refer to [Contrast documentation](https://docs.contrastsecurity.com/en/create-api-only-user.html) for detailed instructions on creating service users.
+3. **RBAC Configuration**:
+   - Grant **View** access to specific applications
+   - Grant **View Vulnerabilities** permission
+   - Do NOT grant edit/delete permissions
+
+
+### Retrieving API Credentials
+
+1. Hover over the API only  label next to the user's name to copy the displayed Service key
+2. The username (email used for the service user) and the Service key are unique to each service user. The rest of the authentication and connection detials are org wide. # For more information on API credentials and usage, refer to the official documentation.
+
+#### Organization ID
+- UUID format
+- Example: `12345678-1234-1234-1234-123456789012`
+- **Used by**: Both agent and API calls (can overlap)
+
+#### API Key
+- User-specific API key (NOT the agent API key)
+- Example: `abc123def456...`
+- **Used by**: Pipeline verification API calls
+
+#### Authorization Header
+- Base64 encoded `username:service_key`
+- Example: `dXNlcm5hbWU6c2VydmljZV9rZXk=`
+- **Used by**: Pipeline verification API calls
+
+**To create manually**:
+```bash
+echo -n "service_username:service_key" | base64
 ```
 
-**Important**: This action should be the **last step** before production promotion:
-- ✅ After application deployment to test/staging environment
-- ✅ After all integration/functional tests have run
-- ✅ After sufficient time for IAST analysis (minimum 60 seconds)
-- ✅ Before production deployment approval
+#### API Host
+- **SaaS**: `https://app.contrastsecurity.com`
+  - **Used by**: Both agent and API calls (can overlap)
+- **SaaS Agent Exclusive Endpoint** `https://app-agents.contrastsecurity.com`
+  - **Used by**: Agent only
 
-## Prerequisites
+**Important**: Do NOT include `/Contrast/api` suffix - the pipeline adds this automatically.
 
-1. Access to your Contrast Security account
-2. Admin access to this GitHub repository (to create secrets)
+### Configuring in Harness
 
-## Required GitHub Secrets
+Add these as Harness Project Secrets (API User credentials, not agent credentials):
+- `CONTRAST_API_KEY` - Service user API key
+- `CONTRAST_AUTHORIZATION` - Service user authorization header
+- `CONTRAST_ORGANIZATION_ID` - Organization UUID (shared with agent)
+- `CONTRAST_HOST` - Contrast instance URL (shared with agent)
 
-You need to create the following secrets in your GitHub repository:
+## Credentials Summary Table
 
-### Navigate to: Repository Settings → Secrets and variables → Actions → New repository secret
+| Credential | Agent (Runtime) | API (Verification) | Shared Across Users? |
+|------------|----------------|-------------------|---------------------|
+| Organization ID | ✅ Required | ✅ Required | ✅ Yes - Org-wide |
+| API Host/URL | ✅ Required | ✅ Required | ✅ Yes - Org-wide |
+| API Key | ✅ Required (legacy) | ✅ Required | ✅ Yes - Org-wide |
+| Agent Token | ✅ Required | ❌ Not used | ⚠️ Per token |
+| Agent Service Key | ✅ Required (legacy) | ❌ Not used | ❌ No - Per user |
+| Agent Username | ✅ Required (legacy) | ❌ Not used | ❌ No - Per user |
+| Service User Service Key | ❌ Not used | ✅ Required | ❌ No - Per user |
+| Service Username | ❌ Not used | ✅ Required | ❌ No - Per user |
+| Authorization Header | ❌ Not used | ✅ Required | ❌ No - Per user (username:service_key) |
 
-Create these 4 secrets:
+**Shared Credentials** (Org-wide):
+- Organization ID, API Host/URL, API Key - Same for all users in the organization
 
-### 1. `CONTRAST_API_KEY`
-- **Description**: Your Contrast API key
-- **How to get it**:
-  1. Log into Contrast Security
-  2. Go to User Settings (top right) → Your Account
-  3. Navigate to "API Key" section
-  4. Copy your API Key
+**User-Specific Credentials** (Per-user):
+- Username (agent or service user), Service Key (agent or service user)
+- Authorization Header - base64 encoded `username:service_key`
 
-### 2. `CONTRAST_AUTHORIZATION`
-- **Description**: Your Contrast authorization header (base64 encoded API key)
-- **How to get it**:
-  1. In Contrast, go to User Settings → Your Account
-  2. Find "Authorization Header" or "Service Key"
-  3. Copy the entire authorization header value
-  4. Format: `<base64-encoded-value>`
+**Warning**: Do NOT use agent credentials for API calls or vice versa. They serve different purposes and have different permission models.
 
-### 3. `CONTRAST_ORGANIZATION_ID`
-- **Description**: Your Contrast organization ID
-- **How to get it**:
-  1. In Contrast, click on your organization name (top right)
-  2. Go to Organization Settings
-  3. Copy the Organization ID (UUID format)
-  4. Example: `12345678-1234-1234-1234-123456789012`
+## Local Testing with Contrast Agent
 
-### 4. `CONTRAST_HOST`
-- **Description**: Your Contrast host URL
-- **Value**: 
-  - Production: `https://app.contrastsecurity.com/Contrast/api`
-  - Staging: `https://teamserver-staging.contsec.com/Contrast/api`
-  - EU: `https://app.contrastsecurity.eu/Contrast/api`
-  - Your local installation URL if applicable
+### Prerequisites
+1. Download Contrast agent JAR from Maven repository
+2. Obtain agent credentials (token or keys) from Contrast
+3. Create `.contrast/contrast.yaml` configuration file
 
-## Quick Setup Guide
-
-### Step 1: Find Your Contrast API Credentials
-
-1. Log into Contrast Security: https://app.contrastsecurity.com (or your instance)
-2. Click your username (top right) → **Your Account**
-3. Scroll to **API Key** section - you'll see:
-   - Organization ID
-   - API Key
-   - Authorization Header (Service Key)
-
-### Step 2: Create GitHub Secrets
+### Running Locally
 
 ```bash
-# Navigate to your GitHub repository
-https://github.com/marklacasse/contrast-harness-pipeline-demo/settings/secrets/actions
+# Start application with agent
+java -javaagent:./.contrast/contrast-agent-6.25.1.jar \
+     -Dcontrast.config.path=./.contrast/contrast.yaml \
+     -jar target/vulnerable-app-1.0.0.jar
 
-# Click "New repository secret" and add each of the 4 secrets above
+# Run vulnerability tests
+./tests/run-route-tests.sh http://localhost:8080
+
+# Check Contrast UI for findings
 ```
 
-### Step 3: Test the Workflow
+### Local Configuration File
 
-You can manually trigger the workflow to test it:
+Create `.contrast/contrast.yaml` with **agent credentials** (not API credentials):
 
-1. Go to **Actions** tab in GitHub
-2. Select **Contrast Security Verification** workflow
-3. Click **Run workflow**
-4. Fill in:
-   - **app-name**: `contrast-harness-demo` (production) or `contrast-harness-pipeline-test` (local)
-   - **build-number**: (optional) Your Harness build number from pipeline
-   - **branch-name**: (optional) Filter by branch like `main`
-5. Click **Run workflow**
-
-## Workflow Behavior
-
-### What It Does
-
-1. **Waits 60 seconds** for Contrast to process vulnerabilities from your tests
-2. **Queries Contrast API** for vulnerabilities in the specified application
-3. **Filters by severity**: Only checks for `critical` and `high` vulnerabilities
-4. **Time window**: Only looks at vulnerabilities found in last 2 hours (7200 seconds)
-5. **Fails the workflow** if any critical/high vulnerabilities are found
-6. **Passes** if no critical/high vulnerabilities are present
-
-### Severity Thresholds
-
-Currently configured to **fail on HIGH or CRITICAL**:
+**Option 1: Using Agent Token (Recommended)**
 ```yaml
-fail-threshold: high
-severities: critical,high
+api:
+  url: https://app.contrastsecurity.com/Contrast
+  agent_token: your-agent-token-here
+  
+application:
+  name: contrast-harness-demo-local
+  tags: local,testing
+  session_metadata: developer=${USER}
+  
+server:
+  environment: development
 ```
 
-You can adjust this to be more/less strict:
-- `fail-threshold: critical` - Only fail on critical (allows high)
-- `fail-threshold: medium` - Fail on medium and above
-- `severities: critical,high,medium` - Check more severity levels
-
-### Filtering by Build/Branch
-
-If you pass build-number or branch-name, the action will filter vulnerabilities to only those found in that specific build/branch:
-
+**Option 2: Using Agent Keys (Legacy)**
 ```yaml
-build-number: "15"  # Matches CONTRAST__APPLICATION__SESSION_METADATA from Harness
-branch-name: "main"  # Matches branch metadata
+api:
+  url: https://app.contrastsecurity.com/Contrast
+  api_key: <AGENT_API_KEY>
+  service_key: <AGENT_SERVICE_KEY>
+  user_name: <AGENT_USERNAME>
+  
+application:
+  name: contrast-harness-demo-local
+  tags: local,testing
+  session_metadata: committer=${USER}
+  
+server:
+  environment: development
 ```
 
-## Integration with Harness Pipeline
+## Viewing Results in Contrast UI
 
-To call this GitHub Action from your Harness pipeline, add a step after running tests:
+### Application Dashboard
+1. Navigate to **Applications**
+2. Find your application (e.g., `contrast-harness-demo`)
+3. View current status and vulnerability counts
 
-```yaml
-- step:
-    type: Run
-    name: Trigger Security Gate
-    identifier: security_gate
-    spec:
-      shell: Bash
-      command: |
-        # Trigger GitHub Action workflow
-        curl -X POST \
-          -H "Accept: application/vnd.github.v3+json" \
-          -H "Authorization: token $GITHUB_TOKEN" \
-          https://api.github.com/repos/marklacasse/contrast-harness-pipeline-demo/actions/workflows/contrast-verify.yml/dispatches \
-          -d '{"ref":"main","inputs":{"app-name":"contrast-harness-demo","build-number":"<+pipeline.sequenceId>"}}'
-        
-        # Wait for workflow to complete
-        sleep 90
-        
-        # Check workflow status (implement polling logic)
-        # Fail pipeline if security gate fails
+### Vulnerabilities
+1. Click **Vulnerabilities** tab
+2. Filter by:
+   - **Severity**: Critical, High, Medium, Low
+   - **Build**: Use build number from session metadata
+   - **Branch**: Filter by branch name
+   - **Status**: Open, Reported, Remediated
+
+### Build Tracking
+1. Use **Session Metadata** filters
+2. Example: `buildNumber:58` shows only build 58 vulnerabilities
+3. Compare builds to see trends
+
+### Stack Traces
+1. Click individual vulnerability
+2. View **Details**
+3. Check **Stack Trace** for data flow
+4. Look for SecurityControls methods (if integrated)
+
+## Security Controls Integration
+
+After implementing custom security controls (see [Security Controls Guide](./security-controls.md)):
+
+1. **Deploy with controls** - Code must call SecurityControls methods
+2. **Trigger vulnerabilities** - Run test suite to exercise code paths
+3. **Close agent session** - Pipeline closes session for processing
+4. **Check auto-remediation** - Contrast recognizes controls and remediates
+
+Example: Command Injection with security control visible in stack trace:
+```
+com.contrast.demo.controller.InjectionController.commandInjection
+  → com.contrast.demo.security.SecurityControls.isSafeCommandInput ✓
+  → Runtime.getRuntime().exec()
 ```
 
-Alternatively, you can use Harness's built-in GitHub integration to trigger the workflow and wait for completion.
-
-## Viewing Results
-
-### In GitHub Actions
-1. Go to **Actions** tab
-2. Click on the workflow run
-3. View the **Contrast Security Verification** step
-4. See pass/fail status and any error messages
-
-### In Contrast Dashboard
-1. Navigate to your application
-2. View **Vulnerabilities** tab
-3. Filter by severity, build number, or branch
-4. Review findings and remediation guidance
+Contrast sees the security control and may auto-remediate the vulnerability.
 
 ## Troubleshooting
 
-### Error: "Invalid API credentials"
-- Double-check all 4 secrets are set correctly
-- Verify API key hasn't expired
-- Ensure authorization header includes the base64 encoded value
+### Agent Not Reporting
+- Check application started successfully
+- Verify agent JAR path is correct
+- Check `.contrast/contrast.yaml` credentials
+- Ensure network connectivity to Contrast host
 
-### Error: "Application not found"
-- Verify the application name exactly matches what's in Contrast
-- Check that the app has reported to Contrast recently (status: online)
-- Application names are case-sensitive
+### Wrong Application Name
+- Application name must match exactly (case-sensitive)
+- Check environment variable: `CONTRAST__APPLICATION__NAME`
+- Look in Contrast UI → Applications for actual name
 
-### Error: "No vulnerabilities found but expected some"
-- Increase the `age-threshold` (currently 7200 seconds = 2 hours)
-- Verify tests actually ran and exercised vulnerable routes
-- Check Contrast agent is properly attached to the application
+### Vulnerabilities Not Filtering by Build
+- Verify session metadata includes `buildNumber`
+- Check format: `buildNumber=123` (no spaces)
+- Ensure using correct filter syntax in Contrast UI
 
-### Workflow passes but should fail
-- Check the `fail-threshold` and `severities` settings
-- Verify the time window (`age-threshold`) is correct
-- Confirm build-number/branch-name filters aren't excluding vulnerabilities
+### Auto-Remediation Not Working
+- Confirm SecurityControls called in code path
+- Check stack traces show security control methods
+- Verify agent session closed via API call
+- Wait 60+ seconds after session close
 
-## Advanced Configuration
+## Best Practices
 
-### Calling from Harness Pipeline
-
-To integrate this GitHub Action into your Harness pipeline, add a step after your deployment and tests:
-
-```yaml
-# Harness Pipeline Stage: Security Gate
-- step:
-    type: Run
-    name: Trigger Security Verification
-    identifier: trigger_security_gate
-    spec:
-      shell: Bash
-      command: |
-        # Trigger GitHub Action workflow
-        gh workflow run contrast-verify.yml \
-          --repo marklacasse/contrast-harness-pipeline-demo \
-          --ref master \
-          -f app-name="contrast-harness-demo" \
-          -f build-number="${HARNESS_BUILD_ID}" \
-          -f wait-time="60"
-        
-        # Wait for workflow to start
-        sleep 5
-        
-        # Get latest run ID
-        RUN_ID=$(gh run list --workflow=contrast-verify.yml --limit 1 --json databaseId -q '.[0].databaseId')
-        
-        # Wait for workflow completion and get result
-        gh run watch ${RUN_ID} --exit-status
-      envVariables:
-        GITHUB_TOKEN: <+secrets.getValue("github_token")>
-```
-
-**Note**: Requires GitHub CLI (`gh`) and a GitHub personal access token with `workflow` permissions.
-
-### Custom Severity Rules
-
-Create different workflows for different environments:
-
-**Production Gate** (strict):
-```yaml
-fail-threshold: medium
-severities: critical,high,medium
-```
-
-**Development Gate** (lenient):
-```yaml
-fail-threshold: critical
-severities: critical
-```
-
-### Integration with Pull Requests
-
-Trigger on PRs to gate merges:
-
-```yaml
-on:
-  pull_request:
-    branches: [ main ]
-```
-
-### Notifications
-
-Add Slack/email notifications on failure:
-
-```yaml
-- name: Notify on Failure
-  if: failure()
-  uses: slackapi/slack-github-action@v1
-  with:
-    payload: |
-      {
-        "text": "Security gate failed! Critical vulnerabilities found."
-      }
-  env:
-    SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
-```
-
-## Security Best Practices
-
-1. **Never commit API keys** - Always use GitHub secrets
-2. **Rotate credentials regularly** - Update API keys every 90 days
-3. **Use service accounts** - Create dedicated Contrast service user for CI/CD
-4. **Limit permissions** - Service account only needs read access to vulnerabilities
-5. **Audit workflow runs** - Review GitHub Actions logs regularly
+1. **Consistent naming** - Use same application name across environments
+2. **Meaningful tags** - Tag by team, project, environment
+3. **Session metadata** - Always include build number and branch
+4. **Version tracking** - Use sequential build numbers
+5. **Regular monitoring** - Check Contrast UI after each deployment
+6. **Security controls** - Integrate custom validators/sanitizers
+7. **Close sessions** - Always close agent session for proper processing to work with SBAV auto-remediation
 
 ## References
 
-- [Contrast GitHub Action Documentation](https://github.com/Contrast-Security-OSS/integration-verify-github-action)
-- [Contrast API Documentation](https://docs.contrastsecurity.com/en/api.html)
-- [GitHub Actions Secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
+- [Contrast Documentation](https://docs.contrastsecurity.com/)
+- [Harness Pipeline Guide](./harness-pipeline.md) - Authentication setup
+- [Security Controls Guide](./security-controls.md) - Custom controls integration
+- [Testing Guide](./testing.md) - Vulnerability test suite
+

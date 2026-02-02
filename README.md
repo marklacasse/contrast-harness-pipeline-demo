@@ -95,14 +95,14 @@ flowchart TB
     Y -.->|Status Update| O
     Z -.->|Status Update| O
 
-    style Developer fill:#0277bd,stroke:#01579b,stroke-width:2px,color:#fff
-    style Harness fill:#e65100,stroke:#bf360c,stroke-width:2px,color:#fff
-    style Kubernetes fill:#6a1b9a,stroke:#4a148c,stroke-width:2px,color:#fff
-    style Runtime fill:#2e7d32,stroke:#1b5e20,stroke-width:2px,color:#fff
-    style ContrastPlatform fill:#c62828,stroke:#b71c1c,stroke-width:2px,color:#fff
-    style SecurityGate fill:#f57f17,stroke:#f57f17,stroke-width:2px,color:#000
-    style AutoRemediation fill:#00695c,stroke:#004d40,stroke-width:2px,color:#fff
-    style ContrastOp fill:#4527a0,stroke:#311b92,stroke-width:2px,color:#fff
+    style Developer fill:#2d2d2d,stroke:#000,stroke-width:2px,color:#fff
+    style Harness fill:#505050,stroke:#2d2d2d,stroke-width:2px,color:#fff
+    style Kubernetes fill:#707070,stroke:#505050,stroke-width:2px,color:#fff
+    style Runtime fill:#909090,stroke:#707070,stroke-width:2px,color:#000
+    style ContrastPlatform fill:#3d3d3d,stroke:#1a1a1a,stroke-width:2px,color:#fff
+    style SecurityGate fill:#e0e0e0,stroke:#bdbdbd,stroke-width:2px,color:#000
+    style AutoRemediation fill:#606060,stroke:#3d3d3d,stroke-width:2px,color:#fff
+    style ContrastOp fill:#4d4d4d,stroke:#2d2d2d,stroke-width:2px,color:#fff
 ```
 
 ### 🔗 Key Integration Points

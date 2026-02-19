@@ -34,33 +34,30 @@ public class InjectionController {
     }
 
     /**
-     * SQL Injection Vulnerability
-     * Concatenates user input directly into SQL query
+     * SQL Injection - FIXED
+     * Uses parameterized query with PreparedStatement to prevent SQL injection
      */
     @PostMapping("/sql")
     @ResponseBody
     public String sqlInjection(@RequestParam String username, @RequestParam String password) {
         try {
-            // Pass through security control validation - Contrast will see this!
-            if (!SecurityControls.isSafeSqlInput(username) || 
-                !SecurityControls.isSafeSqlInput(password)) {
-                // Log that validation occurred but allow it through for demo purposes
-                System.out.println("[SecurityControls] SQL validation triggered for: " + username);
-            }
+            // FIXED: Use parameterized query with bind variables
+            // This prevents SQL injection by treating user input as data, not SQL code
+            String query = "SELECT * FROM users WHERE username = ? AND password = ?";
             
-            // VULNERABLE: Direct string concatenation in SQL query
-            String query = "SELECT * FROM users WHERE username = '" + username + 
-                          "' AND password = '" + password + "'";
-            
-            List<User> users = jdbcTemplate.query(query, (rs, rowNum) -> {
-                User user = new User();
-                user.setId(rs.getLong("id"));
-                user.setUsername(rs.getString("username"));
-                user.setPassword(rs.getString("password"));
-                user.setEmail(rs.getString("email"));
-                user.setRole(rs.getString("role"));
-                return user;
-            });
+            List<User> users = jdbcTemplate.query(query, 
+                (rs, rowNum) -> {
+                    User user = new User();
+                    user.setId(rs.getLong("id"));
+                    user.setUsername(rs.getString("username"));
+                    user.setPassword(rs.getString("password"));
+                    user.setEmail(rs.getString("email"));
+                    user.setRole(rs.getString("role"));
+                    return user;
+                },
+                username,  // First ? parameter
+                password   // Second ? parameter
+            );
             
             if (!users.isEmpty()) {
                 return "Login successful! Welcome " + users.get(0).getUsername() + 

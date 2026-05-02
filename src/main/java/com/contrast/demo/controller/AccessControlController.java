@@ -2,6 +2,7 @@ package com.contrast.demo.controller;
 
 import com.contrast.demo.model.User;
 import com.contrast.demo.repository.UserRepository;
+import com.contrast.demo.security.SecurityControls;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -85,7 +86,9 @@ public class AccessControlController {
     @GetMapping("/download")
     @ResponseBody
     public String downloadFile(@RequestParam String filename) {
-        // VULNERABLE: No path validation
+        if (!isSafeFilename(filename)) {
+            return "Invalid filename";
+        }
         try {
             java.io.File file = new java.io.File(filename);
             if (file.exists()) {
@@ -96,5 +99,9 @@ public class AccessControlController {
         } catch (Exception e) {
             return "Error: " + e.getMessage();
         }
+    }
+
+    private boolean isSafeFilename(String filename) {
+        return SecurityControls.isSafePath(filename);
     }
 }

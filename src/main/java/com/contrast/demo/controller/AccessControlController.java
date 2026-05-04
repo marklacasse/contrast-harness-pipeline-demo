@@ -2,11 +2,14 @@ package com.contrast.demo.controller;
 
 import com.contrast.demo.model.User;
 import com.contrast.demo.repository.UserRepository;
+import com.contrast.demo.security.SecurityControls;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
 
 /**
  * OWASP A01:2021 - Broken Access Control
@@ -15,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 @Controller
 @RequestMapping("/access-control")
 public class AccessControlController {
+
+    private static final String BASE_DOWNLOAD_DIR = System.getProperty("java.io.tmpdir");
 
     @Autowired
     private UserRepository userRepository;
@@ -85,16 +90,26 @@ public class AccessControlController {
     @GetMapping("/download")
     @ResponseBody
     public String downloadFile(@RequestParam String filename) {
-        // VULNERABLE: No path validation
+        if (!isValidDownloadPath(filename)) {
+            return "Access denied: invalid file path";
+        }
         try {
-            java.io.File file = new java.io.File(filename);
+            java.io.File baseDir = new java.io.File(BASE_DOWNLOAD_DIR).getCanonicalFile();
+            java.io.File file = new java.io.File(baseDir, filename).getCanonicalFile();
+            if (!file.getPath().startsWith(baseDir.getPath() + java.io.File.separator)) {
+                return "Access denied: invalid file path";
+            }
             if (file.exists()) {
-                return "File found: " + file.getAbsolutePath() + 
+                return "File found: " + file.getAbsolutePath() +
                        "\nSize: " + file.length() + " bytes";
             }
             return "File not found: " + filename;
-        } catch (Exception e) {
+        } catch (IOException e) {
             return "Error: " + e.getMessage();
         }
+    }
+
+    private boolean isValidDownloadPath(String filename) {
+        return SecurityControls.isSafePath(filename);
     }
 }

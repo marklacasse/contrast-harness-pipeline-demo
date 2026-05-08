@@ -2,6 +2,7 @@ package com.contrast.demo.controller;
 
 import com.contrast.demo.model.User;
 import com.contrast.demo.repository.UserRepository;
+import com.contrast.demo.security.SecurityControls;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 @Controller
 @RequestMapping("/access-control")
 public class AccessControlController {
+
+    private static final String DOWNLOAD_BASE_DIR = "downloads";
 
     @Autowired
     private UserRepository userRepository;
@@ -85,16 +88,35 @@ public class AccessControlController {
     @GetMapping("/download")
     @ResponseBody
     public String downloadFile(@RequestParam String filename) {
-        // VULNERABLE: No path validation
         try {
-            java.io.File file = new java.io.File(filename);
+            if (!isSafeFilePath(filename)) {
+                return "Invalid filename";
+            }
+            java.io.File baseDir = new java.io.File(DOWNLOAD_BASE_DIR).getCanonicalFile();
+            java.io.File file = new java.io.File(baseDir, filename).getCanonicalFile();
+            if (!isWithinBaseDirectory(file, baseDir)) {
+                return "Invalid filename";
+            }
             if (file.exists()) {
-                return "File found: " + file.getAbsolutePath() + 
+                return "File found: " + file.getAbsolutePath() +
                        "\nSize: " + file.length() + " bytes";
             }
             return "File not found: " + filename;
-        } catch (Exception e) {
+        } catch (java.io.IOException e) {
             return "Error: " + e.getMessage();
         }
+    }
+
+    private boolean isSafeFilePath(String filename) {
+        if (filename == null || filename.isEmpty()) {
+            return false;
+        }
+        return SecurityControls.isSafePath(filename);
+    }
+
+    private boolean isWithinBaseDirectory(java.io.File file, java.io.File baseDir) {
+        String filePath = file.getPath();
+        String basePath = baseDir.getPath();
+        return filePath.startsWith(basePath + java.io.File.separator) || filePath.equals(basePath);
     }
 }

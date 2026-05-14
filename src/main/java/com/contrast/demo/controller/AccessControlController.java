@@ -3,6 +3,8 @@ package com.contrast.demo.controller;
 import com.contrast.demo.model.User;
 import com.contrast.demo.repository.UserRepository;
 import jakarta.servlet.http.HttpSession;
+import java.io.File;
+import java.io.IOException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -78,6 +80,21 @@ public class AccessControlController {
         return "User not found";
     }
 
+    private static final String BASE_DOWNLOAD_DIR =
+            System.getProperty("user.dir") + File.separator + "downloads";
+
+    private boolean isWithinBaseDirectory(String filename) {
+        try {
+            File baseDir = new File(BASE_DOWNLOAD_DIR).getCanonicalFile();
+            File requestedFile = new File(baseDir, filename).getCanonicalFile();
+            String basePath = baseDir.getPath() + File.separator;
+            return requestedFile.getPath().startsWith(basePath)
+                    || requestedFile.getPath().equals(baseDir.getPath());
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     /**
      * Path Traversal
      * Allows reading arbitrary files from the system
@@ -85,15 +102,18 @@ public class AccessControlController {
     @GetMapping("/download")
     @ResponseBody
     public String downloadFile(@RequestParam String filename) {
-        // VULNERABLE: No path validation
         try {
-            java.io.File file = new java.io.File(filename);
+            if (!isWithinBaseDirectory(filename)) {
+                return "Access denied: invalid file path";
+            }
+            File baseDir = new File(BASE_DOWNLOAD_DIR).getCanonicalFile();
+            File file = new File(baseDir, filename).getCanonicalFile();
             if (file.exists()) {
-                return "File found: " + file.getAbsolutePath() + 
+                return "File found: " + file.getAbsolutePath() +
                        "\nSize: " + file.length() + " bytes";
             }
             return "File not found: " + filename;
-        } catch (Exception e) {
+        } catch (IOException e) {
             return "Error: " + e.getMessage();
         }
     }

@@ -2,7 +2,10 @@ package com.contrast.demo.controller;
 
 import com.contrast.demo.model.User;
 import com.contrast.demo.repository.UserRepository;
+import com.contrast.demo.security.SecurityControls;
 import jakarta.servlet.http.HttpSession;
+import java.io.File;
+import java.io.IOException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -85,16 +88,26 @@ public class AccessControlController {
     @GetMapping("/download")
     @ResponseBody
     public String downloadFile(@RequestParam String filename) {
-        // VULNERABLE: No path validation
+        if (!isValidFilename(filename)) {
+            return "Invalid filename: " + filename;
+        }
         try {
-            java.io.File file = new java.io.File(filename);
+            File baseDir = new File(System.getProperty("user.dir"), "downloads");
+            File file = new File(baseDir, filename);
+            if (!file.getCanonicalPath().startsWith(baseDir.getCanonicalPath() + File.separator)) {
+                return "Access denied: " + filename;
+            }
             if (file.exists()) {
-                return "File found: " + file.getAbsolutePath() + 
+                return "File found: " + file.getAbsolutePath() +
                        "\nSize: " + file.length() + " bytes";
             }
             return "File not found: " + filename;
-        } catch (Exception e) {
+        } catch (IOException e) {
             return "Error: " + e.getMessage();
         }
+    }
+
+    private boolean isValidFilename(String filename) {
+        return SecurityControls.isSafePath(filename);
     }
 }
